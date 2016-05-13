@@ -1,0 +1,13 @@
+name: toto
+
+# array of dict structured with keys:
+#   - ttl: the time (in days) this backup will be available
+#   - min_age: the minimum age (in days) for a backup (determine the frequency)
+# example: ttl:30 min_age:15 -> a backup will be perform every 15 days and each one will be kept for 30 days
+#           so there will be always a backup aged between 15 and 30 days
+
+backups:
+  - ttl: 30
+    min_age: 15
+  - ttl: 3
+    min_age: 1

@@ -6,7 +6,6 @@
 # Folders
 _obj
 _test
-tests
 vendor
 
 # Architecture specific extensions/prefixes
