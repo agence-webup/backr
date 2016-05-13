@@ -1,0 +1,8 @@
+package: webup/backoops
+import:
+- package: github.com/jawher/mow.cli
+- package: github.com/Sirupsen/logrus
+- package: gopkg.in/yaml.v2
+- package: github.com/coreos/etcd
+  subpackages:
+  - client

@@ -1,0 +1,18 @@
+hash: fd96132ea8563782c8be44a2c36e54838283422cfcc33f9e250ac5df190554df
+updated: 2016-05-13T00:56:45.106580782+02:00
+imports:
+- name: github.com/coreos/etcd
+  version: fb65d0429179c45d8d48b49cda0ef2f233efc0da
+  subpackages:
+  - client
+- name: github.com/jawher/mow.cli
+  version: 772320464101e904cd51198160eb4d489be9cc49
+- name: github.com/Sirupsen/logrus
+  version: cd7d1bbe41066b6c1f19780f895901052150a575
+- name: golang.org/x/sys
+  version: e82cb4d7dffc35bcec7bc8bf9e402377e0ecf3f4
+  subpackages:
+  - unix
+- name: gopkg.in/yaml.v2
+  version: a83829b6f1293c91addabc89d0571c246397bbf4
+devImports: []
