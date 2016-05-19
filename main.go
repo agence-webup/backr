@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,29 +112,41 @@ func main() {
 			key := rootDir + "/" + backupConfig.Name
 			configuredBackups[key] = backupConfig
 
-			_, err = etcdCli.Get(ctx, key, nil)
+			currentStateData, err := etcdCli.Get(ctx, key, nil)
 			if err != nil && !etcd.IsKeyNotFound(err) {
 				log.WithFields(log.Fields{
 					"key": key,
+					"err": err,
 				}).Errorln("Unable to get the key in etcd")
+				continue
 			}
+
+			var backupState domain.BackupState
 
 			if err != nil && etcd.IsKeyNotFound(err) {
 				log.WithFields(log.Fields{
 					"key": key,
 				}).Infoln("Backup config not found in etcd. Create it.")
 
-				etcdCli.Set(ctx, key, "youpi", nil)
+				backupState = domain.NewBackupState(backupConfig)
+
 			} else {
 				log.WithFields(log.Fields{
 					"key": key,
 				}).Infoln("Backup config already exists in etcd. Update it.")
 
-				etcdCli.Set(ctx, key, "youpi updated", nil)
+				backupState = domain.BackupState{}
+				json.Unmarshal([]byte(currentStateData.Node.Value), &backupState)
+
+				backupState.Update(backupConfig)
+
 			}
 
-			// fmt.Println(resp)
-			// fmt.Println(err)
+			// get json data
+			jsonData, _ := json.Marshal(backupState)
+			// set the value in etcd
+			etcdCli.Set(ctx, key, string(jsonData), nil)
+
 		}
 
 		// clean deleted configs

@@ -1,5 +1,11 @@
 package domain
 
+import (
+	"crypto/md5"
+	"fmt"
+	"strconv"
+)
+
 // BackupConfig represents the content of a backup.yml file
 type BackupConfig struct {
 	Name    string `yaml:"name"`
@@ -10,6 +16,11 @@ type BackupConfig struct {
 type BackupSpec struct {
 	TimeToLive int `yaml:"ttl"`
 	MinAge     int `yaml:"min_age"`
+}
+
+func (b BackupSpec) GetChecksum() string {
+	data := []byte(strconv.Itoa(b.TimeToLive) + strconv.Itoa(b.MinAge))
+	return fmt.Sprintf("%x", md5.Sum(data))
 }
 
 // IsValid returns a boolean indicating if the parsed backup.yml is valid
