@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -161,6 +163,23 @@ func main() {
 			}
 		}
 
+		ticker := time.NewTicker(10 * time.Second)
+
+		// handle the SIGINT signal
+		waiting := make(chan os.Signal, 1)
+		signal.Notify(waiting, os.Interrupt)
+
+		go func() {
+			for range ticker.C {
+				fmt.Println("Tick")
+			}
+		}()
+
+		// waiting for events
+		<-waiting
+
+		ticker.Stop()
+		fmt.Println("\n Exiting.")
 	}
 
 	app.Run(os.Args)

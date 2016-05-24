@@ -1,0 +1,5 @@
+name: project2
+
+backups:
+  - ttl: 3
+    min_age: 1
