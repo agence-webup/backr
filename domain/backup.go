@@ -73,11 +73,14 @@ func (b *BackupState) Update(config BackupConfig) {
 
 	b.Items = items
 
-	log.WithFields(log.Fields{
-		"name":      config.Name,
-		"created":   report.Created,
-		"unchanged": report.Unchanged,
-		"deleted":   report.Deleted,
-	}).Infoln("Backup successfully configured")
+	// log only when a config has been updated
+	if report.Created > 0 || report.Deleted > 0 {
+		log.WithFields(log.Fields{
+			"name":      config.Name,
+			"created":   report.Created,
+			"unchanged": report.Unchanged,
+			"deleted":   report.Deleted,
+		}).Infoln("Backup successfully configured")
+	}
 
 }
