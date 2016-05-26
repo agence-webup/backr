@@ -164,6 +164,14 @@ func main() {
 		}
 
 		ticker := time.NewTicker(10 * time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
+
+		ctx = options.NewContext(ctx, options.Options{
+			EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
+			WatchDirs:     *watchDirs,
+			BackupRootDir: "/backups",
+			StartHour:     2,
+		})
 
 		// handle the SIGINT signal
 		waiting := make(chan os.Signal, 1)
