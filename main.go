@@ -1,21 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
-	"time"
-	"webup/backoops/config"
-	"webup/backoops/domain"
+	"webup/backoops/options"
+	"webup/backoops/services"
+
+	"github.com/jawher/mow.cli"
 
 	"golang.org/x/net/context"
-
-	log "github.com/Sirupsen/logrus"
-	etcd "github.com/coreos/etcd/client"
-	"github.com/jawher/mow.cli"
 )
 
 func main() {
@@ -34,136 +29,6 @@ func main() {
 
 	app.Action = func() {
 
-		cfg := etcd.Config{
-			Endpoints: strings.Split(*etcdEndpoints, ","),
-			Transport: etcd.DefaultTransport,
-			// set timeout per request to fail fast when the target endpoint is unavailable
-			HeaderTimeoutPerRequest: 3 * time.Second,
-		}
-		c, err := etcd.New(cfg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		etcdCli := etcd.NewKeysAPI(c)
-
-		configFiles := []string{}
-
-		walkFunc := func(filepath string, info os.FileInfo, err error) error {
-			if !info.IsDir() && info.Name() == "backup.yml" {
-				configFiles = append(configFiles, filepath)
-			}
-
-			return nil
-		}
-
-		log.Println(" ▶︎ Finding backup.yml files...")
-
-		for _, dir := range *watchDirs {
-			fileinfo, err := os.Stat(dir)
-			if err != nil {
-				log.WithFields(log.Fields{
-					"path": dir,
-					"err":  err,
-				}).Errorln("Unable to get file info")
-				continue
-			}
-
-			// handle only directories
-			if !fileinfo.IsDir() {
-				log.WithFields(log.Fields{
-					"path": dir,
-				}).Warnln("Not a directory. Skipped.")
-				continue
-			}
-
-			err = filepath.Walk(dir, walkFunc)
-			if err != nil {
-				log.WithFields(log.Fields{
-					"path": dir,
-					"err":  err,
-				}).Errorln("Unable to walk into directory")
-				continue
-			}
-		}
-
-		log.Info(" ▶︎ Processing config files...")
-
-		ctx := context.Background()
-		rootDir := "/backups"
-		configuredBackups := map[string]domain.BackupConfig{}
-
-		existingConfig, _ := etcdCli.Get(ctx, rootDir, nil)
-
-		for _, file := range configFiles {
-			backupConfig, err := config.ParseConfigFile(file)
-			if err != nil {
-				log.WithFields(log.Fields{
-					"file": file,
-					"err":  err,
-				}).Errorln("Unable to parse backup.yml file")
-				continue
-			}
-
-			if !backupConfig.IsValid() {
-				log.WithFields(log.Fields{
-					"file": file,
-				}).Errorln("The backup.yml file is not valid: 'name' required and 'backups' > 0")
-				continue
-			}
-
-			key := rootDir + "/" + backupConfig.Name
-			configuredBackups[key] = backupConfig
-
-			currentStateData, err := etcdCli.Get(ctx, key, nil)
-			if err != nil && !etcd.IsKeyNotFound(err) {
-				log.WithFields(log.Fields{
-					"key": key,
-					"err": err,
-				}).Errorln("Unable to get the key in etcd")
-				continue
-			}
-
-			var backupState domain.BackupState
-
-			if err != nil && etcd.IsKeyNotFound(err) {
-				log.WithFields(log.Fields{
-					"key": key,
-				}).Infoln("Backup config not found in etcd. Create it.")
-
-				backupState = domain.NewBackupState(backupConfig)
-
-			} else {
-				log.WithFields(log.Fields{
-					"key": key,
-				}).Infoln("Backup config already exists in etcd. Update it.")
-
-				backupState = domain.BackupState{}
-				json.Unmarshal([]byte(currentStateData.Node.Value), &backupState)
-
-				backupState.Update(backupConfig)
-
-			}
-
-			// get json data
-			jsonData, _ := json.Marshal(backupState)
-			// set the value in etcd
-			etcdCli.Set(ctx, key, string(jsonData), nil)
-
-		}
-
-		// clean deleted configs
-		if existingConfig != nil && existingConfig.Node != nil {
-			for _, existingConfigKey := range existingConfig.Node.Nodes {
-				if _, ok := configuredBackups[existingConfigKey.Key]; !ok {
-					log.WithFields(log.Fields{
-						"key": existingConfigKey.Key,
-					}).Infoln("Backup config no longer exists. Remove it from etcd.")
-					etcdCli.Delete(ctx, existingConfigKey.Key, nil)
-				}
-			}
-		}
-
-		ticker := time.NewTicker(10 * time.Second)
 		ctx, cancel := context.WithCancel(context.Background())
 
 		ctx = options.NewContext(ctx, options.Options{
@@ -177,16 +42,17 @@ func main() {
 		waiting := make(chan os.Signal, 1)
 		signal.Notify(waiting, os.Interrupt)
 
-		go func() {
-			for range ticker.C {
-				fmt.Println("Tick")
-			}
-		}()
+		// start backup fetching daemon
+		go services.FetchBackupConfig(ctx)
+		// start backup routine
+		go services.PerformBackup(ctx)
 
-		// waiting for events
+		// waiting for signal
 		<-waiting
 
-		ticker.Stop()
+		// cancelling ctx
+		cancel()
+
 		fmt.Println("\n Exiting.")
 	}
 
