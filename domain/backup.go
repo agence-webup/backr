@@ -1,21 +1,19 @@
 package domain
 
-import (
-	"time"
-
-	log "github.com/Sirupsen/logrus"
-)
+import log "github.com/Sirupsen/logrus"
 
 // BackupState represents a backup state executed by backoops
 type BackupState struct {
-	Items []BackupItemState
+	Items     []BackupItemState
+	IsRunning bool
 }
 
 // BackupItemState represents the state of a backup item
 type BackupItemState struct {
 	BackupSpec
-	Checksum   string
-	LastBackup *time.Time
+	Command           []string
+	Checksum          string
+	UnitsBeforeBackup int
 }
 
 type updateReport struct {
@@ -31,6 +29,15 @@ func NewBackupState(config BackupConfig) BackupState {
 	backupState.Update(config)
 
 	return backupState
+}
+
+func getDefaultCommand(name string, outputDir string) []string {
+	return []string{
+		"pliz",
+		"backup",
+		"--files",
+		"--db",
+	}
 }
 
 // Update a BackupState from a config and log the report
@@ -63,7 +70,6 @@ func (b *BackupState) Update(config BackupConfig) {
 			backupState = BackupItemState{
 				BackupSpec: backup,
 				Checksum:   checksum,
-				LastBackup: nil,
 			}
 			report.Created++
 		}

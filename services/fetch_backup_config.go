@@ -131,6 +131,14 @@ func FetchBackupConfig(ctx context.Context) {
 					backupState = domain.BackupState{}
 					json.Unmarshal([]byte(currentStateData.Node.Value), &backupState)
 
+					// if a backup is running, delay the update for later
+					if backupState.IsRunning {
+						log.WithFields(log.Fields{
+							"key": key,
+						}).Infoln("Backup is currently running. Delay the update to next iteration.")
+						continue
+					}
+
 					backupState.Update(backupConfig)
 
 				}

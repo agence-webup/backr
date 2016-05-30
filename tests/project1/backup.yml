@@ -1,5 +1,11 @@
 name: toto
 
+# override the backup command
+# default: pliz backup --files --db
+# command:
+#   - echo
+#   - "backup!"
+
 # array of dict structured with keys:
 #   - ttl: the time (in days) this backup will be available
 #   - min_age: the minimum age (in days) for a backup (determine the frequency)

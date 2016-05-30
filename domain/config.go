@@ -8,7 +8,8 @@ import (
 
 // BackupConfig represents the content of a backup.yml file
 type BackupConfig struct {
-	Name    string `yaml:"name"`
+	Name    string   `yaml:"name"`
+	Command []string `yaml:"command"`
 	Backups []BackupSpec
 }
 
