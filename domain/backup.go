@@ -1,6 +1,10 @@
 package domain
 
-import log "github.com/Sirupsen/logrus"
+import (
+	"time"
+
+	log "github.com/Sirupsen/logrus"
+)
 
 // BackupState represents a backup state executed by backoops
 type BackupState struct {
@@ -11,9 +15,9 @@ type BackupState struct {
 // BackupItemState represents the state of a backup item
 type BackupItemState struct {
 	BackupSpec
-	Command           []string
-	Checksum          string
-	UnitsBeforeBackup int
+	Command    []string
+	Checksum   string
+	LastBackup time.Time
 }
 
 type updateReport struct {
@@ -71,6 +75,9 @@ func (b *BackupState) Update(config BackupConfig) {
 				BackupSpec: backup,
 				Checksum:   checksum,
 			}
+
+			// setup the first
+
 			report.Created++
 		}
 
@@ -89,4 +96,25 @@ func (b *BackupState) Update(config BackupConfig) {
 		}).Infoln("Backup successfully configured")
 	}
 
+}
+
+// GetNextBackupTime returns the time representing the moment where the backup should be executed,
+// according to the last backup time
+// 'period' indicates the duration used by values in backup.yml files (ttl and minAge)
+func (item *BackupItemState) GetNextBackupTime(startHour int, period time.Duration, startupTime time.Time) time.Time {
+	// returns the date only if it's the first backup or the min age has been reached
+	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
+	if item.LastBackup.IsZero() || item.LastBackup.Add(time.Duration(item.MinAge)*period).Before(startupTime) {
+		date := time.Date(startupTime.Year(), startupTime.Month(), startupTime.Day(), startHour, 30, 0, 0, time.Local)
+
+		// if the next date is before than the current time, then pick the next day at the same hour
+		if date.Before(startupTime) {
+			date = date.AddDate(0, 0, 1)
+		}
+
+		return date
+	}
+
+	date := time.Date(item.LastBackup.Year(), item.LastBackup.Month(), item.LastBackup.Day(), startHour, 30, 0, 0, time.Local)
+	return date.Add(time.Duration(item.MinAge) * period)
 }

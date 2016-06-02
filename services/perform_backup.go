@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/domain"
@@ -12,15 +13,21 @@ import (
 	"golang.org/x/net/context"
 )
 
-type state struct {
-	Next time.Time
-}
+const (
+	periodInConfig = time.Duration(24) * time.Hour // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
+)
 
-func getNext() time.Time {
-	now := time.Now()
-	return time.Date(now.Year(), now.Month(), now.Day(), now.Hour() /*now.Minute()+1*/, now.Minute(), now.Second()+30, 0, time.Local)
-}
+// type state struct {
+// 	Next time.Time
+// }
+//
+// func getNextBackupTime() time.Time {
+// 	now := time.Now()
+// 	// essayer le truncate pour lancer le backup toutes les 10 min. Ne pas oublier de checker ce qu'il se passe si un backup est déjà en cours
+// 	return time.Date(now.Year(), now.Month(), now.Day(), now.Hour() /*+1*/, now.Minute(), now.Second()+30, 0, time.Local)
+// }
 
+// PerformBackup executes the process that start backups from a specific time, and executes the associated command
 func PerformBackup(ctx context.Context) {
 
 	options, ok := options.FromContext(ctx)
@@ -37,16 +44,26 @@ func PerformBackup(ctx context.Context) {
 		return
 	}
 
-	start := getNext()
-	currentState := state{Next: start}
+	// start := getNextBackupTime()
+	// currentState := state{Next: start}
 
-	ticker := time.NewTicker(10 * time.Second)
+	startupTime := time.Now()
+
+	ticker := time.NewTicker(1 * time.Minute)
 
 	go func() {
-		for range ticker.C {
-			if time.Now().After(currentState.Next) {
-				// fmt.Println("DEBUG: start backup at", currentState.Next)
+		isRunning := false
 
+		for tickerTime := range ticker.C {
+
+			// check if a backup is already running
+			if !isRunning {
+
+				log.Infoln("Backup iteration started.")
+
+				isRunning = true
+
+				// fetch all configured backups
 				config, _ := etcdCli.Get(ctx, options.BackupRootDir, nil)
 
 				if config != nil && config.Node != nil {
@@ -54,6 +71,7 @@ func PerformBackup(ctx context.Context) {
 
 						key := backupConfigKey.Key
 
+						// fetch the current state for this backup
 						backupState, err := backupStateFromEtcd(ctx, etcdCli, key)
 						if err != nil {
 							log.WithFields(log.Fields{
@@ -67,54 +85,69 @@ func PerformBackup(ctx context.Context) {
 						backupState.IsRunning = true
 						updateBackupStateInEtcd(ctx, etcdCli, key, backupState)
 
+						// iterate over each item
 						backupDone := false
 						for i := range backupState.Items {
 							item := backupState.Items[i]
-							if item.UnitsBeforeBackup == 0 {
+
+							// stores the current time to avoid to be impacted by the backup's command execution time
+							// now := time.Now()
+							// get the scheduled next time for this backup item
+							nextBackup := item.GetNextBackupTime(options.StartHour, periodInConfig, startupTime)
+
+							fmt.Println("Next:", nextBackup)
+
+							// if the backup is needed
+							if nextBackup.Before(tickerTime) {
+								// check if a backup is already done with a previous item
 								if !backupDone {
 									log.WithFields(log.Fields{
-										"key": key,
-										"ttl": item.TimeToLive,
+										"key":     key,
+										"ttl":     item.TimeToLive,
+										"min_age": item.MinAge,
 									}).Infoln("Performing backup...")
 
-									// TODO: perform backup
-									time.Sleep(12 * time.Second)
+									// TODO: perform backup command
+									time.Sleep(8 * time.Second)
 
 									backupDone = true
 
 								} else {
 									log.WithFields(log.Fields{
-										"key": key,
-										"ttl": item.TimeToLive,
+										"key":     key,
+										"ttl":     item.TimeToLive,
+										"min_age": item.MinAge,
 									}).Infoln("Backup already done. Skip.")
 								}
 
-								item.UnitsBeforeBackup = item.MinAge - 1
+								// store the backup time for this backup item
+								// with the midnight time (to avoid date equality and skipping a backup unintentionally)
+								item.LastBackup = tickerTime
 
-							} else {
-								item.UnitsBeforeBackup--
+								log.WithFields(log.Fields{
+									"next": item.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
+								}).Infoln("Next backup scheduled.")
+
+								backupState.Items[i] = item
 							}
-
-							backupState.Items[i] = item
 						}
 
 						backupState.IsRunning = false
 
+						// save changes into etcd
 						updateBackupStateInEtcd(ctx, etcdCli, key, backupState)
 
-						// if , ok := configuredBackups[existingConfigKey.Key]; !ok {
-						//     log.WithFields(log.Fields{
-						//         "key": existingConfigKey.Key,
-						//     }).Infoln("Backup config no longer exists. Remove it from etcd.")
-						//     etcdCli.Delete(ctx, existingConfigKey.Key, nil)
-						// }
 					}
 				}
 
-				currentState.Next = getNext()
-				// fmt.Println("DEBUG: Done. Next at", currentState.Next)
+				// get the time for the next backup iteration to execute
+				// currentState.Next = getNextBackupTime()
 
+				isRunning = false
+			} else {
+				log.Infoln("Backup process is already ready")
 			}
+
 		}
 	}()
 
