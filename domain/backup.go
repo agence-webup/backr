@@ -6,18 +6,19 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// BackupState represents a backup state executed by backoops
-type BackupState struct {
-	Items     []BackupItemState
+// Project represents a backup project executed by backoops
+type Project struct {
+	Backups   []Backup
+	Dir       string
 	IsRunning bool
 }
 
-// BackupItemState represents the state of a backup item
-type BackupItemState struct {
+// Backup represents the state of a backup
+type Backup struct {
 	BackupSpec
-	Command    []string
-	Checksum   string
-	LastBackup time.Time
+	Command       []string
+	Checksum      string
+	LastExecution time.Time
 }
 
 type updateReport struct {
@@ -26,13 +27,13 @@ type updateReport struct {
 	Deleted   int
 }
 
-// NewBackupState returns a new BackupState.
-// Use it to initialize a new backup item.
-func NewBackupState(config BackupConfig) BackupState {
-	backupState := BackupState{}
-	backupState.Update(config)
+// NewProject returns a new Project.
+// Use it to initialize a new backup project.
+func NewProject(config BackupConfig) Project {
+	project := Project{}
+	project.Update(config)
 
-	return backupState
+	return project
 }
 
 func getDefaultCommand(name string, outputDir string) []string {
@@ -44,35 +45,35 @@ func getDefaultCommand(name string, outputDir string) []string {
 	}
 }
 
-// Update a BackupState from a config and log the report
-func (b *BackupState) Update(config BackupConfig) {
+// Update a Project from a config and log the report
+func (p *Project) Update(config BackupConfig) {
 
 	report := updateReport{}
 
-	// this value will be decremented for each item found
-	report.Deleted = len(b.Items)
+	// this value will be decremented for each backup found
+	report.Deleted = len(p.Backups)
 
 	// map the checksums to each item
-	itemsByChecksum := map[string]BackupItemState{}
-	for i := range b.Items {
-		itemsByChecksum[b.Items[i].Checksum] = b.Items[i]
+	backupsByChecksum := map[string]Backup{}
+	for i := range p.Backups {
+		backupsByChecksum[p.Backups[i].Checksum] = p.Backups[i]
 	}
 
-	items := []BackupItemState{}
-	for _, backup := range config.Backups {
+	backups := []Backup{}
+	for _, backupSpec := range config.Backups {
 
-		checksum := backup.GetChecksum()
-		var backupState BackupItemState
+		checksum := backupSpec.GetChecksum()
+		var backup Backup
 
 		// search if the item already exists
-		if existingState, ok := itemsByChecksum[checksum]; ok {
-			backupState = existingState
+		if existingBackup, ok := backupsByChecksum[checksum]; ok {
+			backup = existingBackup
 
 			report.Unchanged++
 			report.Deleted--
 		} else {
-			backupState = BackupItemState{
-				BackupSpec: backup,
+			backup = Backup{
+				BackupSpec: backupSpec,
 				Checksum:   checksum,
 			}
 
@@ -81,10 +82,10 @@ func (b *BackupState) Update(config BackupConfig) {
 			report.Created++
 		}
 
-		items = append(items, backupState)
+		backups = append(backups, backup)
 	}
 
-	b.Items = items
+	p.Backups = backups
 
 	// log only when a config has been updated
 	if report.Created > 0 || report.Deleted > 0 {
@@ -101,10 +102,10 @@ func (b *BackupState) Update(config BackupConfig) {
 // GetNextBackupTime returns the time representing the moment where the backup should be executed,
 // according to the last backup time
 // 'period' indicates the duration used by values in backup.yml files (ttl and minAge)
-func (item *BackupItemState) GetNextBackupTime(startHour int, period time.Duration, startupTime time.Time) time.Time {
+func (backup *Backup) GetNextBackupTime(startHour int, period time.Duration, startupTime time.Time) time.Time {
 	// returns the date only if it's the first backup or the min age has been reached
 	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
-	if item.LastBackup.IsZero() || item.LastBackup.Add(time.Duration(item.MinAge)*period).Before(startupTime) {
+	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*period).Before(startupTime) {
 		date := time.Date(startupTime.Year(), startupTime.Month(), startupTime.Day(), startHour, 30, 0, 0, time.Local)
 
 		// if the next date is before than the current time, then pick the next day at the same hour
@@ -115,6 +116,6 @@ func (item *BackupItemState) GetNextBackupTime(startHour int, period time.Durati
 		return date
 	}
 
-	date := time.Date(item.LastBackup.Year(), item.LastBackup.Month(), item.LastBackup.Day(), startHour, 30, 0, 0, time.Local)
-	return date.Add(time.Duration(item.MinAge) * period)
+	date := time.Date(backup.LastExecution.Year(), backup.LastExecution.Month(), backup.LastExecution.Day(), startHour, 30, 0, 0, time.Local)
+	return date.Add(time.Duration(backup.MinAge) * period)
 }

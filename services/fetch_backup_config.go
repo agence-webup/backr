@@ -114,37 +114,40 @@ func FetchBackupConfig(ctx context.Context) {
 					continue
 				}
 
-				var backupState domain.BackupState
+				var project domain.Project
 
 				if err != nil && etcd.IsKeyNotFound(err) {
 					log.WithFields(log.Fields{
 						"key": key,
 					}).Infoln("Backup config not found in etcd. Create it.")
 
-					backupState = domain.NewBackupState(backupConfig)
+					project = domain.NewProject(backupConfig)
 
 				} else {
 					// log.WithFields(log.Fields{
 					// 	"key": key,
 					// }).Infoln("Backup config already exists in etcd. Update it.")
 
-					backupState = domain.BackupState{}
-					json.Unmarshal([]byte(currentStateData.Node.Value), &backupState)
+					project = domain.Project{}
+					json.Unmarshal([]byte(currentStateData.Node.Value), &project)
 
 					// if a backup is running, delay the update for later
-					if backupState.IsRunning {
+					if project.IsRunning {
 						log.WithFields(log.Fields{
 							"key": key,
 						}).Infoln("Backup is currently running. Delay the update to next iteration.")
 						continue
 					}
 
-					backupState.Update(backupConfig)
+					project.Update(backupConfig)
 
 				}
 
+				// set the directory of the config path
+				project.Dir, _ = filepath.Abs(filepath.Dir(file))
+
 				// get json data
-				jsonData, _ := json.Marshal(backupState)
+				jsonData, _ := json.Marshal(project)
 				// set the value in etcd
 				etcdCli.Set(ctx, key, string(jsonData), nil)
 

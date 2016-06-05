@@ -72,7 +72,7 @@ func PerformBackup(ctx context.Context) {
 						key := backupConfigKey.Key
 
 						// fetch the current state for this backup
-						backupState, err := backupStateFromEtcd(ctx, etcdCli, key)
+						project, err := backupStateFromEtcd(ctx, etcdCli, key)
 						if err != nil {
 							log.WithFields(log.Fields{
 								"err": err,
@@ -82,18 +82,18 @@ func PerformBackup(ctx context.Context) {
 						}
 
 						// notify that the backup is running
-						backupState.IsRunning = true
-						updateBackupStateInEtcd(ctx, etcdCli, key, backupState)
+						project.IsRunning = true
+						updateBackupStateInEtcd(ctx, etcdCli, key, project)
 
 						// iterate over each item
 						backupDone := false
-						for i := range backupState.Items {
-							item := backupState.Items[i]
+						for i := range project.Backups {
+							backup := project.Backups[i]
 
 							// stores the current time to avoid to be impacted by the backup's command execution time
 							// now := time.Now()
 							// get the scheduled next time for this backup item
-							nextBackup := item.GetNextBackupTime(options.StartHour, periodInConfig, startupTime)
+							nextBackup := backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime)
 
 							fmt.Println("Next:", nextBackup)
 
@@ -103,8 +103,8 @@ func PerformBackup(ctx context.Context) {
 								if !backupDone {
 									log.WithFields(log.Fields{
 										"key":     key,
-										"ttl":     item.TimeToLive,
-										"min_age": item.MinAge,
+										"ttl":     backup.TimeToLive,
+										"min_age": backup.MinAge,
 									}).Infoln("Performing backup...")
 
 									// TODO: perform backup command
@@ -115,27 +115,27 @@ func PerformBackup(ctx context.Context) {
 								} else {
 									log.WithFields(log.Fields{
 										"key":     key,
-										"ttl":     item.TimeToLive,
-										"min_age": item.MinAge,
+										"ttl":     backup.TimeToLive,
+										"min_age": backup.MinAge,
 									}).Infoln("Backup already done. Skip.")
 								}
 
 								// store the backup time for this backup item
 								// with the midnight time (to avoid date equality and skipping a backup unintentionally)
-								item.LastBackup = tickerTime
+								backup.LastExecution = tickerTime
 
 								log.WithFields(log.Fields{
-									"next": item.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
+									"next": backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
 								}).Infoln("Next backup scheduled.")
 
-								backupState.Items[i] = item
+								project.Backups[i] = backup
 							}
 						}
 
-						backupState.IsRunning = false
+						project.IsRunning = false
 
 						// save changes into etcd
-						updateBackupStateInEtcd(ctx, etcdCli, key, backupState)
+						updateBackupStateInEtcd(ctx, etcdCli, key, project)
 
 					}
 				}
@@ -145,7 +145,7 @@ func PerformBackup(ctx context.Context) {
 
 				isRunning = false
 			} else {
-				log.Infoln("Backup process is already ready")
+				log.Infoln("Backup process is already running")
 			}
 
 		}
@@ -158,22 +158,22 @@ func PerformBackup(ctx context.Context) {
 	ticker.Stop()
 }
 
-func backupStateFromEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string) (domain.BackupState, error) {
+func backupStateFromEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string) (domain.Project, error) {
 	state, err := etcdCli.Get(ctx, key, nil)
 	if err != nil {
-		return domain.BackupState{}, err
+		return domain.Project{}, err
 	}
 
 	// parse JSON
-	backupState := domain.BackupState{}
-	json.Unmarshal([]byte(state.Node.Value), &backupState)
+	project := domain.Project{}
+	json.Unmarshal([]byte(state.Node.Value), &project)
 
-	return backupState, nil
+	return project, nil
 }
 
-func updateBackupStateInEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string, backupState domain.BackupState) error {
+func updateBackupStateInEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string, project domain.Project) error {
 	// get json data
-	jsonData, _ := json.Marshal(backupState)
+	jsonData, _ := json.Marshal(project)
 	// set the value in etcd
 	_, err := etcdCli.Set(ctx, key, string(jsonData), nil)
 	return err
