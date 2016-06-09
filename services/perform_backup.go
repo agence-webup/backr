@@ -6,6 +6,7 @@ import (
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/domain"
+	"webup/backoops/execution"
 	"webup/backoops/options"
 
 	log "github.com/Sirupsen/logrus"
@@ -99,29 +100,33 @@ func PerformBackup(ctx context.Context) {
 
 							// if the backup is needed
 							if nextBackup.Before(tickerTime) {
+
+								// prepare a log entry
+								logEntry := log.WithFields(log.Fields{
+									"key":     key,
+									"ttl":     backup.TimeToLive,
+									"min_age": backup.MinAge,
+								})
+
 								// check if a backup is already done with a previous item
 								if !backupDone {
-									log.WithFields(log.Fields{
-										"key":     key,
-										"ttl":     backup.TimeToLive,
-										"min_age": backup.MinAge,
-									}).Infoln("Performing backup...")
+									logEntry.Infoln("Executing backup...")
 
-									// TODO: perform backup command
-									time.Sleep(8 * time.Second)
+									// perform backup command
+									err := execution.ExecuteBackup(project, backup)
+									if err != nil {
+										logEntry.Errorln("Backup execution error")
+									} else {
+										logEntry.Infoln("Backup execution OK")
+									}
 
 									backupDone = true
 
 								} else {
-									log.WithFields(log.Fields{
-										"key":     key,
-										"ttl":     backup.TimeToLive,
-										"min_age": backup.MinAge,
-									}).Infoln("Backup already done. Skip.")
+									logEntry.Infoln("Backup already done. Skip.")
 								}
 
-								// store the backup time for this backup item
-								// with the midnight time (to avoid date equality and skipping a backup unintentionally)
+								// store the backup time for this backup
 								backup.LastExecution = tickerTime
 
 								log.WithFields(log.Fields{
