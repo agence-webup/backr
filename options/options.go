@@ -12,6 +12,15 @@ type Options struct {
 	WatchDirs     []string
 	BackupRootDir string
 	StartHour     int
+	Swift         SwiftOptions
+}
+
+// SwiftOptions represents the settings needed to use Swift
+type SwiftOptions struct {
+	AuthURL    string
+	User       string
+	APIKey     string
+	TenantName string
 }
 
 // NewContext returns a context with associated options

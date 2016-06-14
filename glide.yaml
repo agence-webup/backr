@@ -6,3 +6,4 @@ import:
 - package: github.com/coreos/etcd
   subpackages:
   - client
+- package: github.com/ncw/swift

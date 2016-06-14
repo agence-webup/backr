@@ -9,6 +9,7 @@ import (
 	"webup/backoops/services"
 
 	"github.com/jawher/mow.cli"
+	"github.com/ncw/swift"
 
 	"golang.org/x/net/context"
 )

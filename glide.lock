@@ -1,14 +1,26 @@
-hash: fd96132ea8563782c8be44a2c36e54838283422cfcc33f9e250ac5df190554df
-updated: 2016-05-13T00:56:45.106580782+02:00
+hash: 62d243a107151a79ee97185dc304231f1dc91dfa5ce1277e27b53e1d52fd4567
+updated: 2016-06-14T15:28:17.571739575+02:00
 imports:
 - name: github.com/coreos/etcd
   version: fb65d0429179c45d8d48b49cda0ef2f233efc0da
   subpackages:
   - client
+  - pkg/pathutil
+  - pkg/types
 - name: github.com/jawher/mow.cli
   version: 772320464101e904cd51198160eb4d489be9cc49
+- name: github.com/ncw/swift
+  version: ce444d6d47c51d4dda9202cd38f5094dd8e27e86
 - name: github.com/Sirupsen/logrus
   version: cd7d1bbe41066b6c1f19780f895901052150a575
+- name: github.com/ugorji/go
+  version: b94837a2404ab90efe9289e77a70694c355739cb
+  subpackages:
+  - codec
+- name: golang.org/x/net
+  version: 3f122ce3dbbe488b7e6a8bdb26f41edec852a40b
+  subpackages:
+  - context
 - name: golang.org/x/sys
   version: e82cb4d7dffc35bcec7bc8bf9e402377e0ecf3f4
   subpackages:

@@ -8,6 +8,7 @@ import (
 
 // Project represents a backup project executed by backoops
 type Project struct {
+	Name      string
 	Backups   []Backup
 	Dir       string
 	IsRunning bool
@@ -31,18 +32,11 @@ type updateReport struct {
 // Use it to initialize a new backup project.
 func NewProject(config BackupConfig) Project {
 	project := Project{}
+	project.Name = config.Name
+
 	project.Update(config)
 
 	return project
-}
-
-func getDefaultCommand(name string, outputDir string) []string {
-	return []string{
-		"pliz",
-		"backup",
-		"--files",
-		"--db",
-	}
 }
 
 // Update a Project from a config and log the report
