@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+	"webup/backoops/config"
 	"webup/backoops/domain"
 	"webup/backoops/options"
 
@@ -42,21 +43,17 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 		return err
 	}
 
-	uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
+	err = uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
+	if err != nil {
+		return err
+	}
 
 	return err
 }
 
 func uploadToSwift(project domain.Project, backup domain.Backup, file string, fileExt string, options options.Options) error {
 	// Create a connection
-	c := swift.Connection{
-		UserName: options.Swift.User,
-		ApiKey:   options.Swift.APIKey,
-		AuthUrl:  options.Swift.AuthURL,
-		Tenant:   options.Swift.TenantName, // Name of the tenant (v2 auth only)
-	}
-	// Authenticate
-	err := c.Authenticate()
+	c, err := config.GetSwiftConnection(options.Swift)
 	if err != nil {
 		return err
 	}

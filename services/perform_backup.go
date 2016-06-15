@@ -115,7 +115,7 @@ func PerformBackup(ctx context.Context) {
 									// perform backup command
 									err := execution.ExecuteBackup(project, backup, options)
 									if err != nil {
-										logEntry.Errorln("Backup execution error")
+										logEntry.Errorln("Backup execution error:", err)
 									} else {
 										logEntry.Infoln("Backup execution OK")
 									}

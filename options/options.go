@@ -17,10 +17,11 @@ type Options struct {
 
 // SwiftOptions represents the settings needed to use Swift
 type SwiftOptions struct {
-	AuthURL    string
-	User       string
-	APIKey     string
-	TenantName string
+	AuthURL       string
+	User          string
+	APIKey        string
+	TenantName    string
+	ContainerName string
 }
 
 // NewContext returns a context with associated options

@@ -1,10 +1,6 @@
 package execution
 
-import (
-	"fmt"
-	"os"
-	"os/exec"
-)
+import "os/exec"
 
 // Pliz executes a pliz backup inside the specified directory
 type Pliz struct {
@@ -20,11 +16,6 @@ func (pliz Pliz) Execute(workingDir string, output string) error {
 
 	cmd := exec.Command("pliz", "backup", "-q", "--files", "--db", "-o", output)
 	cmd.Dir = workingDir
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-
-	fmt.Println("pliz", "backup", "-q", "--files", "--db", "-o", output)
-	fmt.Println("into", workingDir)
 
 	return cmd.Run()
 }
