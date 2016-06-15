@@ -42,12 +42,12 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 		return err
 	}
 
-	uploadToSwift(options)
+	uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
 
 	return err
 }
 
-func uploadToSwift(project domain.Project, backup domain.Backup, file string, options options.Options) error {
+func uploadToSwift(project domain.Project, backup domain.Backup, file string, fileExt string, options options.Options) error {
 	// Create a connection
 	c := swift.Connection{
 		UserName: options.Swift.User,
@@ -80,14 +80,14 @@ func uploadToSwift(project domain.Project, backup domain.Backup, file string, op
 		}
 	}
 
-	filename := fmt.Sprintf("%s/%s.%s", project.Name, time.Now().Format(time.RFC3339), filepath.Ext(file))
+	filename := fmt.Sprintf("%s/%s.%s", project.Name, time.Now().Format(time.RFC3339), fileExt)
 
-	file, _ := os.Open(file)
-	defer file.Close()
+	reader, _ := os.Open(file)
+	defer reader.Close()
 	headers := swift.Headers{
 		"X-Delete-After": strconv.Itoa(backup.TimeToLive * 86400),
 	}
-	_, err := c.ObjectPut(containerName, filename, file, true, "", "", headers)
+	_, err = c.ObjectPut(containerName, filename, reader, true, "", "", headers)
 	if err != nil {
 		return err
 	}
