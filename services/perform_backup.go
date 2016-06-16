@@ -118,20 +118,23 @@ func PerformBackup(ctx context.Context) {
 										logEntry.Errorln("Backup execution error:", err)
 									} else {
 										logEntry.Infoln("Backup execution OK")
-									}
 
-									backupDone = true
+										backupDone = true
+									}
 
 								} else {
 									logEntry.Infoln("Backup already done. Skip.")
 								}
 
-								// store the backup time for this backup
-								backup.LastExecution = tickerTime
+								// if the backup is successful (or a previous one), store the execution time
+								if backupDone {
+									// store the backup time for this backup
+									backup.LastExecution = tickerTime
 
-								log.WithFields(log.Fields{
-									"next": backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
-								}).Infoln("Next backup scheduled.")
+									log.WithFields(log.Fields{
+										"next": backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
+									}).Infoln("Next backup scheduled.")
+								}
 
 								project.Backups[i] = backup
 							}
