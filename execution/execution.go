@@ -48,7 +48,10 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 		return err
 	}
 
-	return err
+	// delete the file
+	os.Remove(output)
+
+	return nil
 }
 
 func uploadToSwift(project domain.Project, backup domain.Backup, file string, fileExt string, options options.Options) error {
