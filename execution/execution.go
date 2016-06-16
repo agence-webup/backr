@@ -38,11 +38,13 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 		return err
 	}
 
+	// execute the command
 	err = executor.Execute(project.Dir, output)
 	if err != nil {
 		return err
 	}
 
+	// upload to swift
 	err = uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
 	if err != nil {
 		return err

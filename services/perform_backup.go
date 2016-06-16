@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/domain"
@@ -91,22 +90,20 @@ func PerformBackup(ctx context.Context) {
 						for i := range project.Backups {
 							backup := project.Backups[i]
 
-							// stores the current time to avoid to be impacted by the backup's command execution time
-							// now := time.Now()
 							// get the scheduled next time for this backup item
 							nextBackup := backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime)
 
-							fmt.Println("Next:", nextBackup)
+							// prepare a log entry
+							logEntry := log.WithFields(log.Fields{
+								"key":     key,
+								"ttl":     backup.TimeToLive,
+								"min_age": backup.MinAge,
+							})
+
+							logEntry.Debugln("Next scheduled at", nextBackup)
 
 							// if the backup is needed
 							if nextBackup.Before(tickerTime) {
-
-								// prepare a log entry
-								logEntry := log.WithFields(log.Fields{
-									"key":     key,
-									"ttl":     backup.TimeToLive,
-									"min_age": backup.MinAge,
-								})
 
 								// check if a backup is already done with a previous item
 								if !backupDone {
@@ -148,10 +145,10 @@ func PerformBackup(ctx context.Context) {
 					}
 				}
 
-				// get the time for the next backup iteration to execute
-				// currentState.Next = getNextBackupTime()
-
 				isRunning = false
+
+				log.Infoln("Backup iteration finished.")
+
 			} else {
 				log.Infoln("Backup process is already running")
 			}

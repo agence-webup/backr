@@ -120,6 +120,8 @@ func main() {
 
 		cmd.Action = func() {
 
+			fmt.Println("Searching...")
+
 			swiftOptions := options.SwiftOptions{
 				AuthURL:       *swiftURL,
 				User:          *swiftUser,
