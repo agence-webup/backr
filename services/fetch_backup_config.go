@@ -2,8 +2,10 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/domain"
@@ -39,9 +41,14 @@ func FetchBackupConfig(ctx context.Context) {
 
 			configFiles := []string{}
 
-			walkFunc := func(filepath string, info os.FileInfo, err error) error {
+			walkFunc := func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() && info.Name() == "backup.yml" {
-					configFiles = append(configFiles, filepath)
+					configFiles = append(configFiles, path)
+					return filepath.SkipDir
+				}
+
+				if info.IsDir() && (strings.HasPrefix(info.Name(), ".") || info.Name() == "node_modules" || info.Name() == "vendor") {
+					return filepath.SkipDir
 				}
 
 				return nil
