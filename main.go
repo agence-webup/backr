@@ -108,7 +108,7 @@ func main() {
 		}
 	})
 
-	app.Command("get", "Fetch the backups for a project", func(cmd *cli.Cmd) {
+	app.Command("get", "List the available backup archives for a project", func(cmd *cli.Cmd) {
 
 		cmd.Spec = "NAME"
 
