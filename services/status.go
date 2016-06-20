@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/domain"
@@ -16,6 +17,99 @@ import (
 const (
 	configFile = "backup.yml"
 )
+
+// EnableBackupConfig configures the backup for the current project
+func EnableBackupConfig(ctx context.Context) {
+
+	options, ok := options.FromContext(ctx)
+	if !ok {
+		log.Errorln("Unable to get options from context")
+		return
+	}
+
+	etcdCli, err := config.GetEtcdConnection(options.EtcdEndpoints)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Errorln("Unable to connect to etcd")
+		return
+	}
+
+	rootDir := options.BackupRootDir
+	file := configFile // in the current directory
+	// configuredBackups := map[string]domain.BackupConfig{}
+
+	// existingConfig, _ := etcdCli.Get(ctx, rootDir, nil)
+
+	backupConfig, err := config.ParseConfigFile(file)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"file": file,
+			"err":  err,
+		}).Errorln("Unable to parse backup.yml file")
+		return
+	}
+
+	if !backupConfig.IsValid() {
+		log.WithFields(log.Fields{
+			"file": file,
+		}).Errorln("The backup.yml file is not valid: 'name' required and 'backups' > 0")
+		return
+	}
+
+	key := rootDir + "/" + backupConfig.Name
+	// configuredBackups[key] = backupConfig
+
+	currentStateData, err := etcdCli.Get(ctx, key, nil)
+	if err != nil && !etcd.IsKeyNotFound(err) {
+		log.WithFields(log.Fields{
+			"key": key,
+			"err": err,
+		}).Errorln("Unable to get the key in etcd")
+		return
+	}
+
+	var project domain.Project
+
+	if err != nil && etcd.IsKeyNotFound(err) {
+		log.WithFields(log.Fields{
+			"key": key,
+		}).Infoln("Backup config not found in etcd. Create it.")
+
+		project = domain.NewProject(backupConfig)
+
+	} else {
+		// log.WithFields(log.Fields{
+		// 	"key": key,
+		// }).Infoln("Backup config already exists in etcd. Update it.")
+
+		project = domain.Project{}
+		json.Unmarshal([]byte(currentStateData.Node.Value), &project)
+
+		// if a backup is running, delay the update for later
+		if project.IsRunning {
+			log.WithFields(log.Fields{
+				"key": key,
+			}).Infoln("Backup is currently running, so updating config is not possible. Try again in few minutes.")
+			return
+		}
+
+		project.Update(backupConfig)
+
+	}
+
+	// set the directory of the config path
+	project.Dir, _ = filepath.Abs(filepath.Dir(file))
+
+	// get json data
+	jsonData, _ := json.Marshal(project)
+	// set the value in etcd
+	etcdCli.Set(ctx, key, string(jsonData), nil)
+
+	fmt.Println("")
+	fmt.Println("Backup config successfully updated.")
+
+}
 
 // StatusBackupConfig prints the status of the configured backup for the current project
 func StatusBackupConfig(ctx context.Context) {

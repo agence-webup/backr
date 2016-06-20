@@ -206,6 +206,20 @@ func main() {
 			}
 		}
 
+		cmd.Command("update", "Enable the config specified in the backup.yml of the current directory", func(subcmd *cli.Cmd) {
+
+			subcmd.Action = func() {
+				ctx := context.Background()
+
+				ctx = options.NewContext(ctx, options.Options{
+					EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
+					BackupRootDir: etcdRootDir,
+				})
+
+				services.EnableBackupConfig(ctx)
+			}
+		})
+
 		cmd.Command("status", "Display the status of the config", func(subcmd *cli.Cmd) {
 
 			subcmd.Action = func() {
