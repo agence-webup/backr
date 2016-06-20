@@ -20,6 +20,7 @@ import (
 
 const (
 	swiftContainerName = "backups"
+	etcdRootDir        = "/backups"
 )
 
 type backupInfo struct {
@@ -62,16 +63,11 @@ func main() {
 		EnvVar: "OS_TENANT_NAME",
 	})
 
-	app.Command("start", "Start the backup process", func(cmd *cli.Cmd) {
+	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
 		cmd.Spec = "-w... [--etcd]"
 
-		etcdEndpoints := cmd.String(cli.StringOpt{
-			Name:   "etcd",
-			Value:  "http://localhost:2379",
-			Desc:   "Endpoints for etcd (separated by a comma)",
-			EnvVar: "ETCD_ADVERTISE_URLS",
-		})
+		etcdEndpoints := getEtcdOptionsFromCli(cmd)
 
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
 
@@ -198,5 +194,42 @@ func main() {
 
 	})
 
+	app.Command("config", "Enable, disable or check the status of a backup config", func(cmd *cli.Cmd) {
+
+		etcdEndpoints := getEtcdOptionsFromCli(cmd)
+
+		cmd.Before = func() {
+			// check for a backup.yml file
+			if _, err := os.Stat("backup.yml"); os.IsNotExist(err) {
+				fmt.Println("'backup.yml' file not found in the current directory")
+				cli.Exit(1)
+			}
+		}
+
+		cmd.Command("status", "Display the status of the config", func(subcmd *cli.Cmd) {
+
+			subcmd.Action = func() {
+				ctx := context.Background()
+
+				ctx = options.NewContext(ctx, options.Options{
+					EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
+					BackupRootDir: etcdRootDir,
+				})
+
+				services.StatusBackupConfig(ctx)
+			}
+		})
+
+	})
+
 	app.Run(os.Args)
+}
+
+func getEtcdOptionsFromCli(cmd *cli.Cmd) *string {
+	return cmd.String(cli.StringOpt{
+		Name:   "etcd",
+		Value:  "http://localhost:2379",
+		Desc:   "Endpoints for etcd (separated by a comma)",
+		EnvVar: "ETCD_ADVERTISE_URLS",
+	})
 }
