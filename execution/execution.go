@@ -45,9 +45,11 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 	}
 
 	// upload to swift
-	err = uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
-	if err != nil {
-		return err
+	if options.SwiftUploadEnabled {
+		err = uploadToSwift(project, backup, output, executor.GetOutputFileExtension(), options)
+		if err != nil {
+			return err
+		}
 	}
 
 	// delete the file

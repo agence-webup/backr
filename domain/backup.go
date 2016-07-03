@@ -96,11 +96,11 @@ func (p *Project) Update(config BackupConfig) {
 // GetNextBackupTime returns the time representing the moment where the backup should be executed,
 // according to the last backup time
 // 'period' indicates the duration used by values in backup.yml files (ttl and minAge)
-func (backup *Backup) GetNextBackupTime(startHour int, period time.Duration, startupTime time.Time) time.Time {
+func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime time.Time) time.Time {
 	// returns the date only if it's the first backup or the min age has been reached
 	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
-	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*period).Before(startupTime) {
-		date := time.Date(startupTime.Year(), startupTime.Month(), startupTime.Day(), startHour, 30, 0, 0, time.Local)
+	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*timeSpec.Period).Before(startupTime) {
+		date := time.Date(startupTime.Year(), startupTime.Month(), startupTime.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
 
 		// if the next date is before than the current time, then pick the next day at the same hour
 		if date.Before(startupTime) {
@@ -110,6 +110,6 @@ func (backup *Backup) GetNextBackupTime(startHour int, period time.Duration, sta
 		return date
 	}
 
-	date := time.Date(backup.LastExecution.Year(), backup.LastExecution.Month(), backup.LastExecution.Day(), startHour, 30, 0, 0, time.Local)
-	return date.Add(time.Duration(backup.MinAge) * period)
+	date := time.Date(backup.LastExecution.Year(), backup.LastExecution.Month(), backup.LastExecution.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
+	return date.Add(time.Duration(backup.MinAge) * timeSpec.Period)
 }

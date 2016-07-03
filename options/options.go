@@ -1,6 +1,11 @@
 package options
 
-import "golang.org/x/net/context"
+import (
+	"time"
+	"webup/backoops/domain"
+
+	"golang.org/x/net/context"
+)
 
 type key int
 
@@ -8,11 +13,12 @@ const optionsKey key = 0
 
 // Options represents the settings that can be configured with CLI
 type Options struct {
-	EtcdEndpoints []string
-	WatchDirs     []string
-	BackupRootDir string
-	StartHour     int
-	Swift         SwiftOptions
+	EtcdEndpoints      []string
+	WatchDirs          []string
+	BackupRootDir      string
+	TimeSpec           domain.BackupTimeSpec
+	SwiftUploadEnabled bool
+	Swift              SwiftOptions
 }
 
 // SwiftOptions represents the settings needed to use Swift
@@ -22,6 +28,19 @@ type SwiftOptions struct {
 	APIKey        string
 	TenantName    string
 	ContainerName string
+}
+
+// NewDefaultOptions returns default options
+func NewDefaultOptions() Options {
+	return Options{
+		BackupRootDir:      "/backups",
+		SwiftUploadEnabled: false,
+		TimeSpec: domain.BackupTimeSpec{
+			Hour:   0,
+			Minute: 49,
+			Period: time.Duration(24) * time.Hour, // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
+		},
+	}
 }
 
 // NewContext returns a context with associated options

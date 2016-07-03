@@ -13,10 +13,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const (
-	periodInConfig = time.Duration(24) * time.Hour // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
-)
-
 // type state struct {
 // 	Next time.Time
 // }
@@ -30,7 +26,7 @@ const (
 // PerformBackup executes the process that start backups from a specific time, and executes the associated command
 func PerformBackup(ctx context.Context) {
 
-	options, ok := options.FromContext(ctx)
+	opts, ok := options.FromContext(ctx)
 	if !ok {
 		log.Errorln("Unable to get options from context")
 		return
@@ -64,7 +60,7 @@ func PerformBackup(ctx context.Context) {
 				isRunning = true
 
 				// fetch all configured backups
-				config, _ := etcdCli.Get(ctx, options.BackupRootDir, nil)
+				config, _ := etcdCli.Get(ctx, opts.BackupRootDir, nil)
 
 				if config != nil && config.Node != nil {
 					for _, backupConfigKey := range config.Node.Nodes {
@@ -91,7 +87,7 @@ func PerformBackup(ctx context.Context) {
 							backup := project.Backups[i]
 
 							// get the scheduled next time for this backup item
-							nextBackup := backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime)
+							nextBackup := backup.GetNextBackupTime(opts.TimeSpec, startupTime)
 
 							// prepare a log entry
 							logEntry := log.WithFields(log.Fields{
@@ -110,7 +106,7 @@ func PerformBackup(ctx context.Context) {
 									logEntry.Infoln("Executing backup...")
 
 									// perform backup command
-									err := execution.ExecuteBackup(project, backup, options)
+									err := execution.ExecuteBackup(project, backup, opts)
 									if err != nil {
 										logEntry.Errorln("Backup execution error:", err)
 									} else {
@@ -129,7 +125,7 @@ func PerformBackup(ctx context.Context) {
 									backup.LastExecution = tickerTime
 
 									log.WithFields(log.Fields{
-										"next": backup.GetNextBackupTime(options.StartHour, periodInConfig, startupTime),
+										"next": backup.GetNextBackupTime(opts.TimeSpec, startupTime),
 									}).Infoln("Next backup scheduled.")
 								}
 

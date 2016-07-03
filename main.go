@@ -75,19 +75,19 @@ func main() {
 
 			ctx, cancel := context.WithCancel(context.Background())
 
-			ctx = options.NewContext(ctx, options.Options{
-				EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
-				WatchDirs:     *watchDirs,
-				BackupRootDir: "/backups",
-				StartHour:     1,
-				Swift: options.SwiftOptions{
-					AuthURL:       *swiftURL,
-					User:          *swiftUser,
-					APIKey:        *swiftAPIKey,
-					TenantName:    *swiftTenantName,
-					ContainerName: swiftContainerName,
-				},
-			})
+			// prepare options
+			opts := options.NewDefaultOptions()
+			opts.EtcdEndpoints = strings.Split(*etcdEndpoints, ",")
+			opts.WatchDirs = *watchDirs
+			opts.Swift = options.SwiftOptions{
+				AuthURL:       *swiftURL,
+				User:          *swiftUser,
+				APIKey:        *swiftAPIKey,
+				TenantName:    *swiftTenantName,
+				ContainerName: swiftContainerName,
+			}
+
+			ctx = options.NewContext(ctx, opts)
 
 			// handle the SIGINT signal
 			waiting := make(chan os.Signal, 1)
@@ -211,10 +211,10 @@ func main() {
 			subcmd.Action = func() {
 				ctx := context.Background()
 
-				ctx = options.NewContext(ctx, options.Options{
-					EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
-					BackupRootDir: etcdRootDir,
-				})
+				opts := options.NewDefaultOptions()
+				opts.EtcdEndpoints = strings.Split(*etcdEndpoints, ",")
+
+				ctx = options.NewContext(ctx, opts)
 
 				services.StatusBackupConfig(ctx)
 			}

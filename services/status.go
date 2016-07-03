@@ -84,7 +84,7 @@ func StatusBackupConfig(ctx context.Context) {
 		} else {
 			fmt.Println("  Last execution:", backup.LastExecution)
 		}
-		fmt.Println("  Next scheduled:", backup.GetNextBackupTime(1, time.Duration(86400)*time.Second, time.Now()))
+		fmt.Println("  Next scheduled:", backup.GetNextBackupTime(opts.TimeSpec, time.Now()))
 		fmt.Println("  ---")
 	}
 	fmt.Println("-------------------------------------")
