@@ -24,7 +24,7 @@ import (
 // }
 
 // PerformBackup executes the process that start backups from a specific time, and executes the associated command
-func PerformBackup(ctx context.Context) {
+func PerformBackup(ctx context.Context, running chan<- map[string]bool) {
 
 	opts, ok := options.FromContext(ctx)
 	if !ok {
@@ -32,7 +32,7 @@ func PerformBackup(ctx context.Context) {
 		return
 	}
 
-	etcdCli, err := config.GetEtcdConnection(options.EtcdEndpoints)
+	etcdCli, err := config.GetEtcdConnection(opts.EtcdEndpoints)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
@@ -42,6 +42,8 @@ func PerformBackup(ctx context.Context) {
 
 	// start := getNextBackupTime()
 	// currentState := state{Next: start}
+
+	runningBackups := make(map[string]bool)
 
 	startupTime := time.Now()
 
@@ -78,8 +80,8 @@ func PerformBackup(ctx context.Context) {
 						}
 
 						// notify that the backup is running
-						project.IsRunning = true
-						updateBackupStateInEtcd(ctx, etcdCli, key, project)
+						runningBackups[project.Name] = true
+						running <- runningBackups
 
 						// iterate over each item
 						backupDone := false
@@ -133,7 +135,9 @@ func PerformBackup(ctx context.Context) {
 							}
 						}
 
-						project.IsRunning = false
+						// project.IsRunning = false
+						delete(runningBackups, project.Name)
+						running <- runningBackups
 
 						// save changes into etcd
 						updateBackupStateInEtcd(ctx, etcdCli, key, project)

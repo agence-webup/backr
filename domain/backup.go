@@ -8,10 +8,9 @@ import (
 
 // Project represents a backup project executed by backoops
 type Project struct {
-	Name      string
-	Backups   []Backup
-	Dir       string
-	IsRunning bool
+	Name    string
+	Backups []Backup
+	Dir     string
 }
 
 // Backup represents the state of a backup

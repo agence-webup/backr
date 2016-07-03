@@ -93,10 +93,13 @@ func main() {
 			waiting := make(chan os.Signal, 1)
 			signal.Notify(waiting, os.Interrupt)
 
+			// store the state of the running backups (by project)
+			runningState := make(chan map[string]bool)
+
 			// start backup fetching daemon
-			go services.FetchBackupConfig(ctx)
+			go services.FetchBackupConfig(ctx, runningState)
 			// start backup routine
-			go services.PerformBackup(ctx)
+			go services.PerformBackup(ctx, runningState)
 
 			// waiting for signal
 			<-waiting
