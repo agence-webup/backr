@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // BackupConfig represents the content of a backup.yml file
@@ -17,6 +18,28 @@ type BackupConfig struct {
 type BackupSpec struct {
 	TimeToLive int `yaml:"ttl"`
 	MinAge     int `yaml:"min_age"`
+}
+
+// OrderedBackupSpec allows to order the backups by TTL
+type OrderedBackupSpec []BackupSpec
+
+func (b OrderedBackupSpec) Len() int {
+	return len(b)
+}
+
+func (b OrderedBackupSpec) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (b OrderedBackupSpec) Less(i, j int) bool {
+	return b[i].TimeToLive < b[j].TimeToLive
+}
+
+// BackupTimeSpec specifies the time options for performing backup
+type BackupTimeSpec struct {
+	Hour   int
+	Minute int
+	Period time.Duration
 }
 
 func (b BackupSpec) GetChecksum() string {
