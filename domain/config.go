@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"strconv"
-	"time"
 )
 
 // BackupConfig represents the content of a backup.yml file
@@ -33,13 +32,6 @@ func (b OrderedBackupSpec) Swap(i, j int) {
 
 func (b OrderedBackupSpec) Less(i, j int) bool {
 	return b[i].TimeToLive < b[j].TimeToLive
-}
-
-// BackupTimeSpec specifies the time options for performing backup
-type BackupTimeSpec struct {
-	Hour   int
-	Minute int
-	Period time.Duration
 }
 
 func (b BackupSpec) GetChecksum() string {

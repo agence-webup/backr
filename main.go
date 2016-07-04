@@ -65,11 +65,12 @@ func main() {
 
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
-		cmd.Spec = "-w... [--etcd]"
+		cmd.Spec = "-w... [--etcd] [--time]"
 
 		etcdEndpoints := getEtcdOptionsFromCli(cmd)
 
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
+		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
 
 		cmd.Action = func() {
 
@@ -85,6 +86,17 @@ func main() {
 				APIKey:        *swiftAPIKey,
 				TenantName:    *swiftTenantName,
 				ContainerName: swiftContainerName,
+			}
+
+			// parse the time option
+			if timeOpt != nil {
+				parsedTime, err := time.Parse("15:04", *timeOpt)
+				if err == nil {
+					opts.TimeSpec.Hour = parsedTime.Hour()
+					opts.TimeSpec.Minute = parsedTime.Minute()
+				} else {
+					log.Warnf("Time option is not correctly formatted, must be like '00:00'. Default option will be used instead")
+				}
 			}
 
 			ctx = options.NewContext(ctx, opts)

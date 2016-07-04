@@ -2,7 +2,6 @@ package options
 
 import (
 	"time"
-	"webup/backoops/domain"
 
 	"golang.org/x/net/context"
 )
@@ -16,7 +15,7 @@ type Options struct {
 	EtcdEndpoints      []string
 	WatchDirs          []string
 	BackupRootDir      string
-	TimeSpec           domain.BackupTimeSpec
+	TimeSpec           BackupTimeSpec
 	SwiftUploadEnabled bool
 	Swift              SwiftOptions
 }
@@ -30,14 +29,21 @@ type SwiftOptions struct {
 	ContainerName string
 }
 
+// BackupTimeSpec specifies the time options for performing backup
+type BackupTimeSpec struct {
+	Hour   int
+	Minute int
+	Period time.Duration
+}
+
 // NewDefaultOptions returns default options
 func NewDefaultOptions() Options {
 	return Options{
 		BackupRootDir:      "/backups",
 		SwiftUploadEnabled: false,
-		TimeSpec: domain.BackupTimeSpec{
-			Hour:   0,
-			Minute: 49,
+		TimeSpec: BackupTimeSpec{
+			Hour:   1,
+			Minute: 0,
 			Period: time.Duration(24) * time.Hour, // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
 		},
 	}

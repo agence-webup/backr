@@ -2,6 +2,7 @@ package domain
 
 import (
 	"time"
+	"webup/backoops/options"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -95,7 +96,7 @@ func (p *Project) Update(config BackupConfig) {
 // GetNextBackupTime returns the time representing the moment where the backup should be executed,
 // according to the last backup time
 // 'period' indicates the duration used by values in backup.yml files (ttl and minAge)
-func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime time.Time) time.Time {
+func (backup *Backup) GetNextBackupTime(timeSpec options.BackupTimeSpec, startupTime time.Time) time.Time {
 	// returns the date only if it's the first backup or the min age has been reached
 	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
 	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*timeSpec.Period).Before(startupTime) {
