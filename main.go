@@ -107,7 +107,17 @@ func main() {
 			// cancelling ctx
 			cancel()
 
-			fmt.Println("\n Exiting.")
+			// check https://blog.golang.org/pipelines
+			// for {
+			// 	select {
+			// 	case <-waiting:
+			// 		cancel()
+			// 	case <-ctx.Done():
+			// 		fmt.Println("\n Exiting.")
+			// 		return
+			// 	}
+
+			// }
 		}
 	})
 
