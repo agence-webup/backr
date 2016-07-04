@@ -17,11 +17,13 @@ const (
 	containerName = "backups"
 )
 
+// Executor defines some methods necessary to execute a backup
 type Executor interface {
 	GetOutputFileExtension() string
 	Execute(workingDir string, output string) error
 }
 
+// ExecuteBackup performs backup execution
 func ExecuteBackup(project domain.Project, backup domain.Backup, options options.Options) error {
 
 	tmpDir := "._tmp"
@@ -92,9 +94,6 @@ func uploadToSwift(project domain.Project, backup domain.Backup, file string, fi
 		"X-Delete-After": strconv.Itoa(backup.TimeToLive * 86400),
 	}
 	_, err = c.ObjectPut(containerName, filename, reader, true, "", "", headers)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
