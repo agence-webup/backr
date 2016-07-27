@@ -13,16 +13,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// type state struct {
-// 	Next time.Time
-// }
-//
-// func getNextBackupTime() time.Time {
-// 	now := time.Now()
-// 	// essayer le truncate pour lancer le backup toutes les 10 min. Ne pas oublier de checker ce qu'il se passe si un backup est déjà en cours
-// 	return time.Date(now.Year(), now.Month(), now.Day(), now.Hour() /*+1*/, now.Minute(), now.Second()+30, 0, time.Local)
-// }
-
 // PerformBackup executes the process that start backups from a specific time, and executes the associated command
 func PerformBackup(ctx context.Context, running chan<- map[string]bool) {
 
@@ -40,13 +30,9 @@ func PerformBackup(ctx context.Context, running chan<- map[string]bool) {
 		return
 	}
 
-	// start := getNextBackupTime()
-	// currentState := state{Next: start}
-
 	runningBackups := make(map[string]bool)
 
 	startupTime := time.Now()
-
 	ticker := time.NewTicker(1 * time.Minute)
 
 	go func() {
@@ -135,12 +121,18 @@ func PerformBackup(ctx context.Context, running chan<- map[string]bool) {
 							}
 						}
 
-						// project.IsRunning = false
+						// remove the project from the running backups
 						delete(runningBackups, project.Name)
 						running <- runningBackups
 
 						// save changes into etcd
-						updateBackupStateInEtcd(ctx, etcdCli, key, project)
+						err = updateBackupStateInEtcd(ctx, etcdCli, key, project)
+						if err != nil {
+							log.WithFields(log.Fields{
+								"key": key,
+								"err": err,
+							}).Errorln("Unable to update state in etcd")
+						}
 
 					}
 				}
@@ -171,9 +163,9 @@ func backupStateFromEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string) 
 
 	// parse JSON
 	project := domain.Project{}
-	json.Unmarshal([]byte(state.Node.Value), &project)
+	err = json.Unmarshal([]byte(state.Node.Value), &project)
 
-	return project, nil
+	return project, err
 }
 
 func updateBackupStateInEtcd(ctx context.Context, etcdCli etcd.KeysAPI, key string, project domain.Project) error {
