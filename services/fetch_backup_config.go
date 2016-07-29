@@ -19,7 +19,13 @@ import (
 // FetchBackupConfig runs every X seconds to fetch the backup.yml files inside watched directories
 func FetchBackupConfig(ctx context.Context, runningState chan map[string]bool) {
 
-	ticker := time.NewTicker(10 * time.Second)
+	opts, ok := options.FromContext(ctx)
+	if !ok {
+		log.Errorln("Unable to get options from context")
+		return
+	}
+
+	ticker := time.NewTicker(time.Duration(opts.ConfigRefreshRate) * time.Second)
 
 	runningBackups := make(map[string]bool)
 
@@ -39,7 +45,7 @@ func FetchBackupConfig(ctx context.Context, runningState chan map[string]bool) {
 		}
 	}()
 
-	log.Infoln("'Fetch backup config' service is started.")
+	log.Infof("'Fetch backup files' service is started (refresh rate: %d min)", opts.ConfigRefreshRate)
 
 	// waiting for ctx to cancel
 	<-ctx.Done()

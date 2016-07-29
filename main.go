@@ -65,12 +65,13 @@ func main() {
 
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
-		cmd.Spec = "-w... [--etcd] [--time]"
+		cmd.Spec = "-w... [--etcd] [--time] [--config-refresh-rate]"
 
 		etcdEndpoints := getEtcdOptionsFromCli(cmd)
 
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
 		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
+		configRefreshRate := cmd.IntOpt("config-refresh-rate", 10, "Specifies the refresh rate (in minutes) for finding backup.yml files")
 
 		cmd.Action = func() {
 
@@ -80,6 +81,7 @@ func main() {
 			opts := options.NewDefaultOptions()
 			opts.EtcdEndpoints = strings.Split(*etcdEndpoints, ",")
 			opts.WatchDirs = *watchDirs
+			opts.ConfigRefreshRate = *configRefreshRate
 			opts.Swift = options.SwiftOptions{
 				AuthURL:       *swiftURL,
 				User:          *swiftUser,

@@ -16,6 +16,7 @@ type Options struct {
 	WatchDirs          []string
 	BackupRootDir      string
 	TimeSpec           BackupTimeSpec
+	ConfigRefreshRate  int
 	SwiftUploadEnabled bool
 	Swift              SwiftOptions
 }
