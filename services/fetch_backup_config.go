@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,9 +8,9 @@ import (
 	"webup/backoops/config"
 	"webup/backoops/domain"
 	"webup/backoops/options"
+	"webup/backoops/state"
 
 	log "github.com/Sirupsen/logrus"
-	etcd "github.com/coreos/etcd/client"
 
 	"golang.org/x/net/context"
 )
@@ -34,7 +33,7 @@ func FetchBackupConfig(ctx context.Context, runningState chan map[string]bool) {
 			select {
 			case <-ticker.C:
 				// execute the backup process
-				run(ctx, &runningBackups)
+				run(ctx, opts, &runningBackups)
 			case running := <-runningState:
 				// update the list of the running backups when a map is received from the channel
 				runningBackups = running
@@ -55,21 +54,16 @@ func FetchBackupConfig(ctx context.Context, runningState chan map[string]bool) {
 
 }
 
-func run(ctx context.Context, running *map[string]bool) {
+func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 
-	log.Infoln("Fetching backup config files...")
+	// log.Infoln("Fetching backup config files...")
 
-	options, ok := options.FromContext(ctx)
-	if !ok {
-		log.Errorln("Unable to get options from context")
-		return
-	}
-
-	etcdCli, err := config.GetEtcdConnection(options.EtcdEndpoints)
+	// get a state storage
+	stateStorage, err := state.GetStorage(opts)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
-		}).Errorln("Unable to connect to etcd")
+		}).Errorln("Unable to connect to state storage")
 		return
 	}
 
@@ -90,7 +84,7 @@ func run(ctx context.Context, running *map[string]bool) {
 
 	// log.Println(" ▶︎ Updating config with backup.yml files...")
 
-	for _, dir := range options.WatchDirs {
+	for _, dir := range opts.WatchDirs {
 		fileinfo, err := os.Stat(dir)
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -120,14 +114,13 @@ func run(ctx context.Context, running *map[string]bool) {
 
 	// log.Info(" ▶︎ Processing config files...")
 
-	// ctx := context.Background()
-	rootDir := options.BackupRootDir
 	configuredBackups := map[string]domain.BackupConfig{}
 
-	existingConfig, _ := etcdCli.Get(ctx, rootDir, nil)
+	// fetch already configured projects before executing
+	existingProjects, _ := stateStorage.ConfiguredProjects(ctx)
 
 	for _, file := range configFiles {
-		backupConfig, err := config.ParseConfigFile(file)
+		parsedConfig, err := config.ParseConfigFile(file)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"file": file,
@@ -136,74 +129,62 @@ func run(ctx context.Context, running *map[string]bool) {
 			continue
 		}
 
-		if !backupConfig.IsValid() {
+		if !parsedConfig.IsValid() {
 			log.WithFields(log.Fields{
 				"file": file,
 			}).Errorln("The backup.yml file is not valid: 'name' required and 'backups' > 0")
 			continue
 		}
 
-		key := rootDir + "/" + backupConfig.Name
-		configuredBackups[key] = backupConfig
-
-		currentStateData, err := etcdCli.Get(ctx, key, nil)
-		if err != nil && !etcd.IsKeyNotFound(err) {
-			log.WithFields(log.Fields{
-				"key": key,
-				"err": err,
-			}).Errorln("Unable to get the key in etcd")
-			continue
-		}
+		// keep the parsed config for delete handling, later (see below)
+		configuredBackups[parsedConfig.Name] = parsedConfig
 
 		var project domain.Project
 
-		if err != nil && etcd.IsKeyNotFound(err) {
+		// trying to find the existing project
+		project, ok := existingProjects[parsedConfig.Name]
+		if !ok {
 			log.WithFields(log.Fields{
-				"key": key,
-			}).Infoln("Backup config not found in etcd. Create it.")
+				"name": parsedConfig.Name,
+			}).Infoln("Backup config not found in current state. Create it.")
 
-			project = domain.NewProject(backupConfig)
+			project = domain.NewProject(parsedConfig)
 
 		} else {
-			// log.WithFields(log.Fields{
-			// 	"key": key,
-			// }).Infoln("Backup config already exists in etcd. Update it.")
-
-			project = domain.Project{}
-			json.Unmarshal([]byte(currentStateData.Node.Value), &project)
-
-			// if a backup is running, delay the update for later
-			// if project.IsRunning {
 			if _, ok := (*running)[project.Name]; ok {
 				log.WithFields(log.Fields{
-					"key": key,
+					"name": project.Name,
 				}).Infoln("Backup is currently running. Delay the update to next iteration.")
 				continue
 			}
 
-			project.Update(backupConfig)
-
+			project.Update(parsedConfig)
 		}
 
 		// set the directory of the config path
 		project.Dir, _ = filepath.Abs(filepath.Dir(file))
 
-		// get json data
-		jsonData, _ := json.Marshal(project)
-		// set the value in etcd
-		etcdCli.Set(ctx, key, string(jsonData), nil)
+		// save the configuration into state storage
+		err = stateStorage.SaveProject(ctx, project)
 
 	}
 
-	// clean deleted configs
-	if existingConfig != nil && existingConfig.Node != nil {
-		for _, existingConfigKey := range existingConfig.Node.Nodes {
-			if _, ok := configuredBackups[existingConfigKey.Key]; !ok {
+	// clean deleted configurations
+	for name, project := range existingProjects {
+		if _, ok := configuredBackups[name]; !ok {
+			log.WithFields(log.Fields{
+				"name": name,
+			}).Infoln("Backup config no longer exists. Remove it from the current state.")
+
+			err := stateStorage.DeleteProject(ctx, project)
+
+			if err != nil {
 				log.WithFields(log.Fields{
-					"key": existingConfigKey.Key,
-				}).Infoln("Backup config no longer exists. Remove it from etcd.")
-				etcdCli.Delete(ctx, existingConfigKey.Key, nil)
+					"name": name,
+				}).Errorln("Unable to delete project from the current state.")
 			}
 		}
 	}
+
+	log.Infoln("Configuration updated")
 }
