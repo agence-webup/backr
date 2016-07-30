@@ -15,6 +15,7 @@ type Storer interface {
 // ConfigStorer defines the behaviour for interacting with a storage solution to store the state of backup config
 type ConfigStorer interface {
 	ConfiguredProjects(ctx context.Context) (map[string]domain.Project, error)
+	GetProject(ctx context.Context, name string) (*domain.Project, error)
 	SaveProject(ctx context.Context, project domain.Project) error
 	DeleteProject(ctx context.Context, project domain.Project) error
 }

@@ -186,5 +186,5 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 		}
 	}
 
-	log.Infoln("Configuration updated")
+	log.Infoln("Configuration update done")
 }

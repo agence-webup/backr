@@ -50,8 +50,7 @@ func (s *EtcdStorage) ConfiguredProjects(ctx context.Context) (map[string]domain
 			name := projectData.Key
 			name = strings.Replace(name, s.rootDir+"/", "", -1)
 
-			project := domain.Project{}
-			json.Unmarshal([]byte(projectData.Value), &project)
+			project := getProjectFromJSON(projectData.Value)
 
 			projects[name] = project
 		}
@@ -73,6 +72,28 @@ func (s *EtcdStorage) DeleteProject(ctx context.Context, project domain.Project)
 	return err
 }
 
+func (s *EtcdStorage) GetProject(ctx context.Context, name string) (*domain.Project, error) {
+	key := s.getKey(name)
+	data, err := s.client.Get(ctx, key, nil)
+
+	if err != nil && !etcd.IsKeyNotFound(err) {
+		return nil, err
+	}
+	if err != nil && etcd.IsKeyNotFound(err) {
+		return nil, nil
+	}
+
+	project := getProjectFromJSON(data.Node.Value)
+
+	return &project, nil
+}
+
 func (s *EtcdStorage) getKey(name string) string {
 	return s.rootDir + "/" + name
+}
+
+func getProjectFromJSON(jsonData string) domain.Project {
+	project := domain.Project{}
+	json.Unmarshal([]byte(jsonData), &project)
+	return project
 }

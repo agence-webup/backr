@@ -1,15 +1,13 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 	"webup/backoops/config"
-	"webup/backoops/domain"
 	"webup/backoops/options"
+	"webup/backoops/state"
 
 	log "github.com/Sirupsen/logrus"
-	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -26,15 +24,15 @@ func StatusBackupConfig(ctx context.Context) {
 		return
 	}
 
-	etcdCli, err := config.GetEtcdConnection(opts.EtcdEndpoints)
+	// get a state storage
+	stateStorage, err := state.GetStorage(opts)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
-		}).Errorln("Unable to connect to etcd")
+		}).Errorln("Unable to connect to state storage")
 		return
 	}
 
-	rootDir := opts.BackupRootDir
 	file := configFile // in the current directory
 
 	backupConfig, err := config.ParseConfigFile(file)
@@ -53,26 +51,20 @@ func StatusBackupConfig(ctx context.Context) {
 		return
 	}
 
-	key := rootDir + "/" + backupConfig.Name
-
-	currentStateData, err := etcdCli.Get(ctx, key, nil)
-	if err != nil && !etcd.IsKeyNotFound(err) {
+	project, err := stateStorage.GetProject(ctx, backupConfig.Name)
+	if err != nil {
 		log.WithFields(log.Fields{
-			"key": key,
 			"err": err,
-		}).Errorln("Unable to get the key in etcd")
+		}).Errorln("Unable to get the project state from state storage")
 		return
 	}
 
-	if err != nil && etcd.IsKeyNotFound(err) {
+	if project == nil {
 		log.WithFields(log.Fields{
-			"key": key,
+			"name": backupConfig.Name,
 		}).Warnln("Backup is not configured")
 		return
 	}
-
-	project := domain.Project{}
-	json.Unmarshal([]byte(currentStateData.Node.Value), &project)
 
 	fmt.Println("-------------------------------------")
 	fmt.Println("Name:", project.Name)
