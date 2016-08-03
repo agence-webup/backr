@@ -1,6 +1,8 @@
-hash: 62d243a107151a79ee97185dc304231f1dc91dfa5ce1277e27b53e1d52fd4567
-updated: 2016-06-14T15:28:17.571739575+02:00
+hash: 1ac977f2c75123bfa6bb84dd02d0c9e966e1cafffeca2985a94d5457a7886611
+updated: 2016-07-30T22:19:27.889472108+02:00
 imports:
+- name: github.com/boltdb/bolt
+  version: dfb21201d9270c1082d5fb0f07f500311ff72f18
 - name: github.com/coreos/etcd
   version: fb65d0429179c45d8d48b49cda0ef2f233efc0da
   subpackages:
@@ -27,4 +29,4 @@ imports:
   - unix
 - name: gopkg.in/yaml.v2
   version: a83829b6f1293c91addabc89d0571c246397bbf4
-devImports: []
+testImports: []

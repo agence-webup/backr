@@ -32,6 +32,7 @@ func StatusBackupConfig(ctx context.Context) {
 		}).Errorln("Unable to connect to state storage")
 		return
 	}
+	defer stateStorage.CleanUp()
 
 	file := configFile // in the current directory
 

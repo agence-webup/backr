@@ -7,3 +7,5 @@ import:
   subpackages:
   - client
 - package: github.com/ncw/swift
+- package: github.com/boltdb/bolt
+  version: ~1.2.1

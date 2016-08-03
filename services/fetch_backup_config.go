@@ -66,6 +66,7 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 		}).Errorln("Unable to connect to state storage")
 		return
 	}
+	defer stateStorage.CleanUp()
 
 	configFiles := []string{}
 
@@ -117,7 +118,13 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 	configuredBackups := map[string]domain.BackupConfig{}
 
 	// fetch already configured projects before executing
-	existingProjects, _ := stateStorage.ConfiguredProjects(ctx)
+	existingProjects, err := stateStorage.ConfiguredProjects(ctx)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Errorln("Unable to get existing projects from state storage")
+		return
+	}
 
 	for _, file := range configFiles {
 		parsedConfig, err := config.ParseConfigFile(file)
@@ -166,7 +173,11 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 
 		// save the configuration into state storage
 		err = stateStorage.SaveProject(ctx, project)
-
+		if err != nil {
+			log.WithFields(log.Fields{
+				"err": err,
+			}).Errorln("Unable to save project into state storage")
+		}
 	}
 
 	// clean deleted configurations

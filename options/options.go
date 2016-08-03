@@ -40,7 +40,7 @@ type BackupTimeSpec struct {
 // NewDefaultOptions returns default options
 func NewDefaultOptions() Options {
 	return Options{
-		BackupRootDir:      "/backups",
+		BackupRootDir:      "backups",
 		SwiftUploadEnabled: false,
 		TimeSpec: BackupTimeSpec{
 			Hour:   1,

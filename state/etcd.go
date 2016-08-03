@@ -36,7 +36,7 @@ func NewEtcdStorage(opts options.Options) (*EtcdStorage, error) {
 
 	return &EtcdStorage{
 		client:  etcdCli,
-		rootDir: opts.BackupRootDir,
+		rootDir: "/" + opts.BackupRootDir,
 	}, nil
 }
 
@@ -88,12 +88,10 @@ func (s *EtcdStorage) GetProject(ctx context.Context, name string) (*domain.Proj
 	return &project, nil
 }
 
-func (s *EtcdStorage) getKey(name string) string {
-	return s.rootDir + "/" + name
+func (s *EtcdStorage) CleanUp() {
+	// no cleanup needed
 }
 
-func getProjectFromJSON(jsonData string) domain.Project {
-	project := domain.Project{}
-	json.Unmarshal([]byte(jsonData), &project)
-	return project
+func (s *EtcdStorage) getKey(name string) string {
+	return s.rootDir + "/" + name
 }
