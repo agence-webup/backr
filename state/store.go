@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/json"
+	"fmt"
 	"webup/backoops/domain"
 	"webup/backoops/options"
 
@@ -14,13 +15,22 @@ type Storer interface {
 	GetProject(ctx context.Context, name string) (*domain.Project, error)
 	SaveProject(ctx context.Context, project domain.Project) error
 	DeleteProject(ctx context.Context, project domain.Project) error
+}
 
-	CleanUp()
+func CleanupStorage(opts options.Options) {
+	if opts.StateStorage.GetType() == options.StateStorageLocal {
+		CleanupBoltStorage(opts)
+	}
 }
 
 func GetStorage(opts options.Options) (Storer, error) {
-	// return NewEtcdStorage(opts)
-	return NewBoltStorage(opts)
+	if opts.StateStorage.GetType() == options.StateStorageLocal {
+		return NewBoltStorage(opts)
+	} else if opts.StateStorage.GetType() == options.StateStorageEtcd {
+		return NewEtcdStorage(opts)
+	}
+
+	return nil, fmt.Errorf("Unable to detect the state storage")
 }
 
 func getProjectFromJSON(jsonData string) domain.Project {

@@ -27,7 +27,6 @@ func PerformBackup(ctx context.Context, running chan<- map[string]bool) {
 		}).Errorln("Unable to connect to state storage")
 		return
 	}
-	defer stateStorage.CleanUp()
 
 	runningBackups := make(map[string]bool)
 

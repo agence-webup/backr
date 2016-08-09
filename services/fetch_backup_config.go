@@ -66,7 +66,6 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 		}).Errorln("Unable to connect to state storage")
 		return
 	}
-	defer stateStorage.CleanUp()
 
 	configFiles := []string{}
 

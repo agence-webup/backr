@@ -12,7 +12,7 @@ const optionsKey key = 0
 
 // Options represents the settings that can be configured with CLI
 type Options struct {
-	EtcdEndpoints      []string
+	StateStorage       StateStorageOptions
 	WatchDirs          []string
 	BackupRootDir      string
 	TimeSpec           BackupTimeSpec
@@ -28,6 +28,26 @@ type SwiftOptions struct {
 	APIKey        string
 	TenantName    string
 	ContainerName string
+}
+
+type StateStorageType string
+
+const (
+	StateStorageEtcd  StateStorageType = "etcd"
+	StateStorageLocal StateStorageType = "local"
+)
+
+type StateStorageOptions struct {
+	EtcdEndpoints *string
+	LocalPath     *string
+}
+
+func (st *StateStorageOptions) GetType() StateStorageType {
+	if st.LocalPath != nil && *st.LocalPath != "" {
+		return StateStorageLocal
+	}
+
+	return StateStorageEtcd
 }
 
 // BackupTimeSpec specifies the time options for performing backup

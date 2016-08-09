@@ -5,11 +5,11 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"time"
 	"webup/backoops/config"
 	"webup/backoops/options"
 	"webup/backoops/services"
+	"webup/backoops/state"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/jawher/mow.cli"
@@ -65,9 +65,9 @@ func main() {
 
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
-		cmd.Spec = "-w... [--etcd] [--time] [--config-refresh-rate]"
+		cmd.Spec = "-w... --etcd|--local [--time] [--config-refresh-rate]"
 
-		etcdEndpoints := getEtcdOptionsFromCli(cmd)
+		stateStorageOpts := getStateStorateOptions(cmd)
 
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
 		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
@@ -79,7 +79,7 @@ func main() {
 
 			// prepare options
 			opts := options.NewDefaultOptions()
-			opts.EtcdEndpoints = strings.Split(*etcdEndpoints, ",")
+			opts.StateStorage = stateStorageOpts
 			opts.WatchDirs = *watchDirs
 			opts.ConfigRefreshRate = *configRefreshRate
 			opts.Swift = options.SwiftOptions{
@@ -120,6 +120,8 @@ func main() {
 
 			// cancelling ctx
 			cancel()
+
+			state.CleanupStorage(opts)
 
 			// check https://blog.golang.org/pipelines
 			// for {
@@ -223,7 +225,7 @@ func main() {
 
 	app.Command("config", "Enable, disable or check the status of a backup config", func(cmd *cli.Cmd) {
 
-		etcdEndpoints := getEtcdOptionsFromCli(cmd)
+		stateStorageOpts := getStateStorateOptions(cmd)
 
 		cmd.Before = func() {
 			// check for a backup.yml file
@@ -239,11 +241,13 @@ func main() {
 				ctx := context.Background()
 
 				opts := options.NewDefaultOptions()
-				opts.EtcdEndpoints = strings.Split(*etcdEndpoints, ",")
+				opts.StateStorage = stateStorageOpts
 
 				ctx = options.NewContext(ctx, opts)
 
 				services.StatusBackupConfig(ctx)
+
+				state.CleanupStorage(opts)
 			}
 		})
 
@@ -252,11 +256,23 @@ func main() {
 	app.Run(os.Args)
 }
 
-func getEtcdOptionsFromCli(cmd *cli.Cmd) *string {
-	return cmd.String(cli.StringOpt{
+func getStateStorateOptions(cmd *cli.Cmd) options.StateStorageOptions {
+	etcdEndpoints := cmd.String(cli.StringOpt{
 		Name:   "etcd",
 		Value:  "http://localhost:2379",
 		Desc:   "Endpoints for etcd (separated by a comma)",
 		EnvVar: "ETCD_ADVERTISE_URLS",
 	})
+
+	localPath := cmd.String(cli.StringOpt{
+		Name:   "local",
+		Value:  "",
+		Desc:   "Local directory where the state will be stored (r/w permissions required)",
+		EnvVar: "STATE_STORAGE_LOCAL",
+	})
+
+	return options.StateStorageOptions{
+		EtcdEndpoints: etcdEndpoints,
+		LocalPath:     localPath,
+	}
 }

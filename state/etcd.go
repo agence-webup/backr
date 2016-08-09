@@ -21,7 +21,7 @@ type EtcdStorage struct {
 
 func NewEtcdStorage(opts options.Options) (*EtcdStorage, error) {
 	cfg := etcd.Config{
-		Endpoints: opts.EtcdEndpoints,
+		Endpoints: strings.Split(*opts.StateStorage.EtcdEndpoints, ","),
 		Transport: etcd.DefaultTransport,
 		// set timeout per request to fail fast when the target endpoint is unavailable
 		HeaderTimeoutPerRequest: 3 * time.Second,
@@ -44,6 +44,10 @@ func (s *EtcdStorage) ConfiguredProjects(ctx context.Context) (map[string]domain
 	data, err := s.client.Get(ctx, s.rootDir, nil)
 
 	projects := map[string]domain.Project{}
+
+	if err != nil && etcd.IsKeyNotFound(err) {
+		return projects, nil
+	}
 
 	if data != nil && data.Node != nil {
 		for _, projectData := range data.Node.Nodes {
@@ -86,10 +90,6 @@ func (s *EtcdStorage) GetProject(ctx context.Context, name string) (*domain.Proj
 	project := getProjectFromJSON(data.Node.Value)
 
 	return &project, nil
-}
-
-func (s *EtcdStorage) CleanUp() {
-	// no cleanup needed
 }
 
 func (s *EtcdStorage) getKey(name string) string {

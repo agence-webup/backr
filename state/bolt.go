@@ -3,11 +3,14 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 	"webup/backoops/domain"
 
 	"golang.org/x/net/context"
 
 	"webup/backoops/options"
+
+	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
@@ -25,7 +28,7 @@ func NewBoltStorage(opts options.Options) (*BoltStorage, error) {
 
 	if db == nil {
 		log.Debugln("Opening BoltDB...")
-		newConnection, err := bolt.Open("state.db", 0644, nil)
+		newConnection, err := bolt.Open(filepath.Join(*opts.StateStorage.LocalPath, "state.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
 			return nil, err
 		}
@@ -34,9 +37,17 @@ func NewBoltStorage(opts options.Options) (*BoltStorage, error) {
 	}
 
 	return &BoltStorage{
-		// db:     db,
 		bucket: []byte(opts.BackupRootDir),
 	}, nil
+}
+
+// CleanupBoltStorage cleans the opened connection to BoltDB file
+func CleanupBoltStorage(opts options.Options) {
+	if db != nil {
+		log.Debugln("Closing BoltDB")
+		db.Close()
+		db = nil
+	}
 }
 
 // ConfiguredProjects returns the configured projects (Storer interface)
@@ -138,11 +149,4 @@ func (b *BoltStorage) GetProject(ctx context.Context, name string) (*domain.Proj
 	})
 
 	return project, err
-}
-
-// CleanUp cleans the state storage (Storer interface)
-func (b *BoltStorage) CleanUp() {
-	log.Debugln("Closing BoltDB")
-	db.Close()
-	db = nil
 }
