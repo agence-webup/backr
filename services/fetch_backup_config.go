@@ -106,14 +106,13 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 			continue
 		}
 
-		err = filepath.Walk(dir, walkFunc)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"path": dir,
-				"err":  err,
-			}).Errorln("Unable to walk into directory")
-			continue
-		}
+		filepath.Walk(dir, walkFunc)
+		// if err != nil {
+		// 	log.WithFields(log.Fields{
+		// 		"path": dir,
+		// 	}).Infoln("Skipping directory")
+		// 	continue
+		// }
 	}
 
 	// log.Info(" ▶︎ Processing config files...")
