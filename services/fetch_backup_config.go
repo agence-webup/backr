@@ -70,12 +70,16 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 	configFiles := []string{}
 
 	walkFunc := func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() && info.Name() == "backup.yml" {
+		filename := info.Name()
+		if !info.IsDir() && filename == "backup.yml" {
 			configFiles = append(configFiles, path)
 			return filepath.SkipDir
 		}
 
-		if info.IsDir() && (strings.HasPrefix(info.Name(), ".") || info.Name() == "node_modules" || info.Name() == "vendor") {
+		// the following directories are skipped
+		// - node_modules / vendor
+		// - hidden directories (except current folder: '.')
+		if info.IsDir() && ((strings.HasPrefix(filename, ".") && len(filename) > 1) || filename == "node_modules" || filename == "vendor") {
 			return filepath.SkipDir
 		}
 
