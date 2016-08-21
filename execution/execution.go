@@ -52,10 +52,10 @@ func ExecuteBackup(project domain.Project, backup domain.Backup, options options
 		if err != nil {
 			return err
 		}
-	}
 
-	// delete the file
-	os.Remove(output)
+		// delete the file
+		os.Remove(output)
+	}
 
 	return nil
 }
