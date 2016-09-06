@@ -90,8 +90,10 @@ func uploadToSwift(project domain.Project, backup domain.Backup, file string, fi
 
 	reader, _ := os.Open(file)
 	defer reader.Close()
+
+	expire := (time.Duration(backup.TimeToLive) * options.TimeSpec.Period).Seconds()
 	headers := swift.Headers{
-		"X-Delete-After": strconv.Itoa(backup.TimeToLive * int(options.TimeSpec.Period)),
+		"X-Delete-After": strconv.Itoa(int(expire)),
 	}
 	_, err = c.ObjectPut(containerName, filename, reader, true, "", "", headers)
 
