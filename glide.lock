@@ -1,30 +1,16 @@
-hash: 1ac977f2c75123bfa6bb84dd02d0c9e966e1cafffeca2985a94d5457a7886611
-updated: 2016-07-30T22:19:27.889472108+02:00
+hash: 89e2dbf010e1bff6bd0765b75f769e89820f3a473d25c91f73c55869faf7d848
+updated: 2016-10-05T18:51:20.949630956+02:00
 imports:
 - name: github.com/boltdb/bolt
-  version: dfb21201d9270c1082d5fb0f07f500311ff72f18
-- name: github.com/coreos/etcd
-  version: fb65d0429179c45d8d48b49cda0ef2f233efc0da
-  subpackages:
-  - client
-  - pkg/pathutil
-  - pkg/types
+  version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/jawher/mow.cli
   version: 772320464101e904cd51198160eb4d489be9cc49
 - name: github.com/ncw/swift
   version: ce444d6d47c51d4dda9202cd38f5094dd8e27e86
 - name: github.com/Sirupsen/logrus
-  version: cd7d1bbe41066b6c1f19780f895901052150a575
-- name: github.com/ugorji/go
-  version: b94837a2404ab90efe9289e77a70694c355739cb
-  subpackages:
-  - codec
-- name: golang.org/x/net
-  version: 3f122ce3dbbe488b7e6a8bdb26f41edec852a40b
-  subpackages:
-  - context
+  version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
 - name: golang.org/x/sys
-  version: e82cb4d7dffc35bcec7bc8bf9e402377e0ecf3f4
+  version: 30de6d19a3bd89a5f38ae4028e23aaa5582648af
   subpackages:
   - unix
 - name: gopkg.in/yaml.v2

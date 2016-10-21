@@ -1,14 +1,12 @@
-package state
+package bolt
 
 import (
 	"encoding/json"
 	"fmt"
 	"time"
-	"webup/backoops/domain"
+	"webup/backr"
 
-	"golang.org/x/net/context"
-
-	"webup/backoops/options"
+	"context"
 
 	"path/filepath"
 
@@ -16,16 +14,14 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-// BoltStorage implements the Storer interface to store the state locally, using BoltDB
-type BoltStorage struct {
+// Storage implements the StateStorage interface to store the state locally, using BoltDB
+type Storage struct {
 	bucket []byte
 }
 
 var db *bolt.DB
 
-// NewBoltStorage returns a Storer binded to BoltDB
-func NewBoltStorage(opts options.Options) (*BoltStorage, error) {
-
+func GetStorage(opts backr.Settings) (backr.StateStorer, error) {
 	if db == nil {
 		log.Debugln("Opening BoltDB...")
 		newConnection, err := bolt.Open(filepath.Join(*opts.StateStorage.LocalPath, "state.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
@@ -36,13 +32,13 @@ func NewBoltStorage(opts options.Options) (*BoltStorage, error) {
 		log.Debugln("BoltDB opened.")
 	}
 
-	return &BoltStorage{
+	return &Storage{
 		bucket: []byte(opts.BackupRootDir),
 	}, nil
 }
 
-// CleanupBoltStorage cleans the opened connection to BoltDB file
-func CleanupBoltStorage(opts options.Options) {
+// Cleanup cleans the opened connection to BoltDB file
+func (b *Storage) Cleanup() {
 	if db != nil {
 		log.Debugln("Closing BoltDB")
 		db.Close()
@@ -51,11 +47,11 @@ func CleanupBoltStorage(opts options.Options) {
 }
 
 // ConfiguredProjects returns the configured projects (Storer interface)
-func (b *BoltStorage) ConfiguredProjects(ctx context.Context) (map[string]domain.Project, error) {
+func (b *Storage) ConfiguredProjects(ctx context.Context) (map[string]backr.Project, error) {
 
 	log.Debugln("Fetching current projects from BoltDB...")
 
-	projects := map[string]domain.Project{}
+	projects := map[string]backr.Project{}
 
 	// retrieve the data
 	err := db.View(func(tx *bolt.Tx) error {
@@ -69,7 +65,7 @@ func (b *BoltStorage) ConfiguredProjects(ctx context.Context) (map[string]domain
 		c := bucket.Cursor()
 
 		for key, value := c.First(); key != nil; key, value = c.Next() {
-			project := getProjectFromJSON(string(value))
+			project := backr.ProjectFromJSON(string(value))
 
 			projects[string(key)] = project
 		}
@@ -81,7 +77,7 @@ func (b *BoltStorage) ConfiguredProjects(ctx context.Context) (map[string]domain
 }
 
 // SaveProject store a project (Storer interface)
-func (b *BoltStorage) SaveProject(ctx context.Context, project domain.Project) error {
+func (b *Storage) SaveProject(ctx context.Context, project backr.Project) error {
 
 	log.Debugln("Saving a project into BoltDB...")
 
@@ -108,7 +104,7 @@ func (b *BoltStorage) SaveProject(ctx context.Context, project domain.Project) e
 }
 
 // DeleteProject removes a project (Storer interface)
-func (b *BoltStorage) DeleteProject(ctx context.Context, project domain.Project) error {
+func (b *Storage) DeleteProject(ctx context.Context, project backr.Project) error {
 
 	log.Debugln("Deleting a project from BoltDB...")
 
@@ -130,9 +126,9 @@ func (b *BoltStorage) DeleteProject(ctx context.Context, project domain.Project)
 }
 
 // GetProject returns a project (Storer interface)
-func (b *BoltStorage) GetProject(ctx context.Context, name string) (*domain.Project, error) {
+func (b *Storage) GetProject(ctx context.Context, name string) (*backr.Project, error) {
 
-	var project *domain.Project
+	var project *backr.Project
 
 	// retrieve the data
 	err := db.View(func(tx *bolt.Tx) error {
@@ -143,7 +139,7 @@ func (b *BoltStorage) GetProject(ctx context.Context, name string) (*domain.Proj
 		}
 
 		value := bucket.Get([]byte(name))
-		*project = getProjectFromJSON(string(value))
+		*project = backr.ProjectFromJSON(string(value))
 
 		return nil
 	})

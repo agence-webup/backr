@@ -1,62 +1,26 @@
-package services
+package tasks
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-	"webup/backoops/config"
-	"webup/backoops/domain"
-	"webup/backoops/options"
-	"webup/backoops/state"
+	"webup/backr"
+	"webup/backr/state"
 
 	log "github.com/Sirupsen/logrus"
-
-	"golang.org/x/net/context"
 )
 
-// FetchBackupConfig runs every X seconds to fetch the backup.yml files inside watched directories
-func FetchBackupConfig(ctx context.Context, runningState chan map[string]bool) {
+// UpdateStateFromSpec runs before each backup to fetch the backup.yml files inside watched directories and update the state
+func UpdateStateFromSpec(ctx context.Context) {
 
-	opts, ok := options.FromContext(ctx)
+	log.Debugln("Updating state from backup.yml files...")
+
+	opts, ok := backr.SettingsFromContext(ctx)
 	if !ok {
 		log.Errorln("Unable to get options from context")
 		return
 	}
-
-	ticker := time.NewTicker(time.Duration(opts.ConfigRefreshRate) * time.Second)
-
-	runningBackups := make(map[string]bool)
-
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				// execute the backup process
-				run(ctx, opts, &runningBackups)
-			case running := <-runningState:
-				// update the list of the running backups when a map is received from the channel
-				runningBackups = running
-			}
-
-			// fmt.Println("")
-
-		}
-	}()
-
-	log.Infof("'Fetch backup files' service is started (refresh rate: %d min)", opts.ConfigRefreshRate)
-
-	// waiting for ctx to cancel
-	<-ctx.Done()
-
-	ticker.Stop()
-	log.Infoln("Stopping backup fetching daemon.")
-
-}
-
-func run(ctx context.Context, opts options.Options, running *map[string]bool) {
-
-	// log.Infoln("Fetching backup config files...")
 
 	// get a state storage
 	stateStorage, err := state.GetStorage(opts)
@@ -117,7 +81,7 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 
 	// log.Info(" ▶︎ Processing config files...")
 
-	configuredBackups := map[string]domain.BackupConfig{}
+	configuredBackups := map[string]backr.ProjectBackupSpec{}
 
 	// fetch already configured projects before executing
 	existingProjects, err := stateStorage.ConfiguredProjects(ctx)
@@ -129,7 +93,12 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 	}
 
 	for _, file := range configFiles {
-		parsedConfig, err := config.ParseConfigFile(file)
+
+		log.WithFields(log.Fields{
+			"file": file,
+		}).Debugln("Parsing spec file")
+
+		parsedSpec, err := parseSpecFile(file)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"file": file,
@@ -138,7 +107,7 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 			continue
 		}
 
-		if !parsedConfig.IsValid() {
+		if !parsedSpec.IsValid() {
 			log.WithFields(log.Fields{
 				"file": file,
 			}).Errorln("The backup.yml file is not valid: 'name' required and 'backups' > 0")
@@ -146,28 +115,38 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 		}
 
 		// keep the parsed config for delete handling, later (see below)
-		configuredBackups[parsedConfig.Name] = parsedConfig
+		configuredBackups[parsedSpec.Name] = parsedSpec
 
-		var project domain.Project
+		var project backr.Project
 
 		// trying to find the existing project
-		project, ok := existingProjects[parsedConfig.Name]
+		project, ok := existingProjects[parsedSpec.Name]
 		if !ok {
 			log.WithFields(log.Fields{
-				"name": parsedConfig.Name,
+				"name": parsedSpec.Name,
 			}).Infoln("Backup config not found in current state. Create it.")
 
-			project = domain.NewProject(parsedConfig)
+			project = backr.NewProject(parsedSpec)
 
 		} else {
-			if _, ok := (*running)[project.Name]; ok {
-				log.WithFields(log.Fields{
-					"name": project.Name,
-				}).Infoln("Backup is currently running. Delay the update to next iteration.")
-				continue
-			}
+			// if _, ok := (*running)[project.Name]; ok {
+			// 	log.WithFields(log.Fields{
+			// 		"name": project.Name,
+			// 	}).Infoln("Backup is currently running. Delay the update to next iteration.")
+			// 	continue
+			// }
 
-			project.Update(parsedConfig)
+			report := project.Update(parsedSpec)
+
+			// log only when a config has been updated
+			if report.Created > 0 || report.Deleted > 0 {
+				log.WithFields(log.Fields{
+					"name":      parsedSpec.Name,
+					"created":   report.Created,
+					"unchanged": report.Unchanged,
+					"deleted":   report.Deleted,
+				}).Infoln("Backup successfully configured")
+			}
 		}
 
 		// set the directory of the config path
@@ -199,5 +178,6 @@ func run(ctx context.Context, opts options.Options, running *map[string]bool) {
 		}
 	}
 
-	log.Infoln("Configuration update done")
+	log.Debugln("State update done")
+
 }

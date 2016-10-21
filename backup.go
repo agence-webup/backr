@@ -1,11 +1,10 @@
-package domain
+package backr
 
-import (
-	"time"
-	"webup/backoops/options"
+import "time"
 
-	log "github.com/Sirupsen/logrus"
-)
+type BackupExecution interface {
+	Execute()
+}
 
 // Project represents a backup project executed by backoops
 type Project struct {
@@ -22,7 +21,7 @@ type Backup struct {
 	LastExecution time.Time
 }
 
-type updateReport struct {
+type UpdateReport struct {
 	Created   int
 	Unchanged int
 	Deleted   int
@@ -30,19 +29,19 @@ type updateReport struct {
 
 // NewProject returns a new Project.
 // Use it to initialize a new backup project.
-func NewProject(config BackupConfig) Project {
+func NewProject(spec ProjectBackupSpec) Project {
 	project := Project{}
-	project.Name = config.Name
+	project.Name = spec.Name
 
-	project.Update(config)
+	project.Update(spec)
 
 	return project
 }
 
-// Update a Project from a config and log the report
-func (p *Project) Update(config BackupConfig) {
+// Update a Project from a spec and log the report
+func (p *Project) Update(spec ProjectBackupSpec) UpdateReport {
 
-	report := updateReport{}
+	report := UpdateReport{}
 
 	// this value will be decremented for each backup found
 	report.Deleted = len(p.Backups)
@@ -54,7 +53,7 @@ func (p *Project) Update(config BackupConfig) {
 	}
 
 	backups := []Backup{}
-	for _, backupSpec := range config.Backups {
+	for _, backupSpec := range spec.Backups {
 
 		checksum := backupSpec.GetChecksum()
 		var backup Backup
@@ -81,22 +80,12 @@ func (p *Project) Update(config BackupConfig) {
 
 	p.Backups = backups
 
-	// log only when a config has been updated
-	if report.Created > 0 || report.Deleted > 0 {
-		log.WithFields(log.Fields{
-			"name":      config.Name,
-			"created":   report.Created,
-			"unchanged": report.Unchanged,
-			"deleted":   report.Deleted,
-		}).Infoln("Backup successfully configured")
-	}
-
+	return report
 }
 
 // GetNextBackupTime returns the time representing the moment where the backup should be executed,
 // according to the last backup time
-// 'period' indicates the duration used by values in backup.yml files (ttl and minAge)
-func (backup *Backup) GetNextBackupTime(timeSpec options.BackupTimeSpec, startupTime time.Time) time.Time {
+func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime time.Time) time.Time {
 	// returns the date only if it's the first backup or the min age has been reached
 	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
 	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*timeSpec.Period).Before(startupTime) {

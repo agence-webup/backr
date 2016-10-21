@@ -1,2 +1,2 @@
-# backoops
-A utility allowing to perform backups, using a DB as config backend. etcd and local storage (BoltDB) are currently supported.
+# backr
+A utility allowing to perform backups, using a DB as config backend. Local storage (BoltDB) and etcd (soon) are currently supported.
