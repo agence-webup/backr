@@ -102,3 +102,16 @@ func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime tim
 	date := time.Date(backup.LastExecution.Year(), backup.LastExecution.Month(), backup.LastExecution.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
 	return date.Add(time.Duration(backup.MinAge) * timeSpec.Period)
 }
+
+// GetHealth returns the health of a backup: true is everything is OK, false otherwise
+func (backup *Backup) GetHealth(timeSpec BackupTimeSpec, startupTime time.Time) bool {
+
+	// add a tolerance of 1 hour (execution time...)
+	nowWithTolerance := time.Now().Add(-10 * time.Minute)
+
+	if backup.GetNextBackupTime(timeSpec, startupTime).Before(nowWithTolerance) {
+		return false
+	}
+
+	return true
+}

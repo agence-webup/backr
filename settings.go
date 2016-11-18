@@ -18,7 +18,8 @@ type Settings struct {
 	StartupTime   time.Time
 	// ConfigRefreshRate  int
 	// SwiftUploadEnabled bool
-	Swift *SwiftSettings
+	Swift     *SwiftSettings
+	ApiListen string
 }
 
 // SwiftSettings represents the settings needed to use Swift
@@ -68,6 +69,7 @@ func NewDefaultSettings() Settings {
 			Period: time.Duration(24) * time.Hour, // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
 		},
 		StartupTime: time.Now(),
+		ApiListen:   ":22257",
 	}
 }
 

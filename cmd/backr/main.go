@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"time"
 	"webup/backr"
+	"webup/backr/http"
 	"webup/backr/state"
 	"webup/backr/swift"
 	"webup/backr/tasks"
@@ -25,7 +26,7 @@ func main() {
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
 		// cmd.Spec = "-w... --etcd|--local [--time] [--config-refresh-rate]"
-		cmd.Spec = "-w... --etcd|--local [--time] [--debug]"
+		cmd.Spec = "-w... --etcd|--local [--time] [--api-listen] [--debug]"
 
 		// state storage
 		stateStorageSettings := getStateStorateSettings(cmd)
@@ -39,6 +40,7 @@ func main() {
 		// options
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
 		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
+		apiListenOpt := cmd.StringOpt("api-listen", ":22257", "Configure IP and port for HTTP API")
 		debug := cmd.BoolOpt("debug", false, "Enables the debug logs output")
 
 		cmd.Action = func() {
@@ -55,6 +57,7 @@ func main() {
 			currentSettings.StateStorage = stateStorageSettings
 			currentSettings.WatchDirs = *watchDirs
 			currentSettings.Swift = swiftSettings
+			currentSettings.ApiListen = *apiListenOpt
 
 			// parse the time option
 			if timeOpt != nil {
@@ -71,7 +74,7 @@ func main() {
 
 			// handle the SIGINT signal
 			waiting := make(chan os.Signal, 1)
-			signal.Notify(waiting, os.Interrupt)
+			signal.Notify(waiting, os.Interrupt, os.Kill)
 
 			// prepare ticker
 			ticker := time.NewTicker(5 * time.Minute) // 1 minute
@@ -99,6 +102,9 @@ func main() {
 					}
 				}
 			}()
+
+			// start HTTP API daemon
+			startAPI(ctx)
 
 			// waiting for signal
 			<-waiting
@@ -157,49 +163,6 @@ func main() {
 				fmt.Println("------------------------------------------------------")
 				fmt.Println(info)
 			}
-
-		}
-
-	})
-
-	app.Command("debug", "Display debug status of backups (Warning: if time option is not set correctly, the next_exec info will be wrong)", func(cmd *cli.Cmd) {
-
-		cmd.Spec = "--etcd|--local [--time]"
-
-		// state storage
-		stateStorageSettings := getStateStorateSettings(cmd)
-
-		// options
-		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
-
-		cmd.Action = func() {
-
-			// set debug log level
-			log.SetLevel(log.DebugLevel)
-
-			ctx := context.Background()
-
-			// prepare options
-			currentSettings := backr.NewDefaultSettings()
-			currentSettings.StateStorage = stateStorageSettings
-
-			// parse the time option
-			if timeOpt != nil {
-				parsedTime, err := time.Parse("15:04", *timeOpt)
-				if err == nil {
-					currentSettings.TimeSpec.Hour = parsedTime.Hour()
-					currentSettings.TimeSpec.Minute = parsedTime.Minute()
-				} else {
-					log.Warnf("Time option is not correctly formatted, must be like '00:00'. Default option will be used instead")
-				}
-			}
-
-			ctx = backr.NewContextWithSettings(ctx, currentSettings)
-
-			tasks.DisplayStatus(ctx)
-
-			// cleanup current state storage
-			state.CleanupStorage(currentSettings)
 
 		}
 
@@ -268,12 +231,9 @@ func getStateStorateSettings(cmd *cli.Cmd) backr.StateStorageSettings {
 	}
 }
 
-func getInitialExecutionTime(timeSpec backr.BackupTimeSpec) time.Time {
-	now := time.Now()
-	date := time.Date(now.Year(), now.Month(), now.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
-	if date.Before(now) {
-		date = date.Add(time.Duration(24) * time.Hour)
-	}
-
-	return date
+func startAPI(ctx context.Context) {
+	go func() {
+		api := http.NewAPI()
+		api.Listen(ctx)
+	}()
 }
