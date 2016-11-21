@@ -8,25 +8,29 @@ import (
 	"time"
 	"webup/backr"
 	"webup/backr/http"
+	"webup/backr/randstr"
 	"webup/backr/state"
-	"webup/backr/swift"
 	"webup/backr/tasks"
 
+	"io/ioutil"
+
 	log "github.com/Sirupsen/logrus"
+	jwt "github.com/dgrijalva/jwt-go"
 	cli "github.com/jawher/mow.cli"
+	homedir "github.com/mitchellh/go-homedir"
 )
 
 func main() {
 	app := cli.App("backr", "Perform backups")
 
-	app.Version("v version", "Backr 1 (build 6)")
+	app.Version("v version", "Backr 2 (build 7)")
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
 		// cmd.Spec = "-w... --etcd|--local [--time] [--config-refresh-rate]"
-		cmd.Spec = "-w... --etcd|--local [--time] [--api-listen] [--debug]"
+		cmd.Spec = "-w... --etcd|--local [--time] [--secret-file-path] [--api-listen] [--debug]"
 
 		// state storage
 		stateStorageSettings := getStateStorateSettings(cmd)
@@ -40,6 +44,7 @@ func main() {
 		// options
 		watchDirs := cmd.StringsOpt("w watch", []string{}, "Specifies the directories to watch for finding backup.yml files")
 		timeOpt := cmd.StringOpt("time", "01:00", "Specifies the moment when the backup process will be started")
+		secretFilePath := cmd.StringOpt("secret-file-path", "~/.backr/jwt_secret", "Path to the file storing the secret used for generating access token to backup files")
 		apiListenOpt := cmd.StringOpt("api-listen", ":22257", "Configure IP and port for HTTP API")
 		debug := cmd.BoolOpt("debug", false, "Enables the debug logs output")
 
@@ -58,6 +63,9 @@ func main() {
 			currentSettings.WatchDirs = *watchDirs
 			currentSettings.Swift = swiftSettings
 			currentSettings.ApiListen = *apiListenOpt
+
+			path, _ := homedir.Expand(*secretFilePath)
+			currentSettings.SecretFilepath = path
 
 			// parse the time option
 			if timeOpt != nil {
@@ -119,51 +127,46 @@ func main() {
 		}
 	})
 
-	app.Command("get", "List the available backup archives for a project", func(cmd *cli.Cmd) {
+	app.Command("token", "Create a token to access to backup archives", func(cmd *cli.Cmd) {
 
-		cmd.Spec = "NAME [--debug]"
+		cmd.Spec = "[--secret-file-path] [-q]"
 
-		name := cmd.StringArg("NAME", "", "The name of the project")
-		debug := cmd.BoolOpt("debug", false, "Enables the debug logs output")
-
-		// swift
-		swiftSettings := getSwiftSettings(cmd)
-		if swiftSettings == nil {
-			log.Errorln("Swift is not correctly configured because some args or env vars are missing.")
-			cli.Exit(1)
-			return
-		}
+		secretFilePath := cmd.StringOpt("secret-file-path", "~/.backr/jwt_secret", "Path to the file storing the secret used for generating access token to backup files")
+		quiet := cmd.BoolOpt("q quiet", false, "Just display the token")
 
 		cmd.Action = func() {
 
-			// set debug log level if needed
-			if *debug {
-				log.SetLevel(log.DebugLevel)
-			}
+			filepath, _ := homedir.Expand(*secretFilePath)
 
-			fmt.Println("Searching...")
-
-			results, err := swift.Get(*name, *swiftSettings)
+			secret, err := ioutil.ReadFile(filepath)
 			if err != nil {
-				if richErr, ok := err.(backr.UploadedArchiveError); ok {
-					log.Errorln(err)
-					if richErr.IsFatal {
-						cli.Exit(1)
-					} else {
-						cli.Exit(0)
-					}
-				} else {
-					log.Errorln(err)
+				if !*quiet {
+					fmt.Println("Secret file not found. Create it at", filepath)
+				}
+				secret = randstr.SecureRandomBytes(64)
+				err := ioutil.WriteFile(filepath, secret, 0600)
+				if err != nil {
+					fmt.Println("Unable to create secret file")
+					fmt.Println(err)
 					cli.Exit(1)
 				}
 			}
 
-			fmt.Println("Results:")
-			for _, info := range results {
-				fmt.Println("------------------------------------------------------")
-				fmt.Println(info)
+			// Create a new token object, specifying signing method and the claims
+			// you would like it to contain.
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"exp": time.Now().Add(24 * time.Hour).Unix(),
+			})
+
+			// Sign and get the complete encoded token as a string using the secret
+			tokenString, err := token.SignedString(secret)
+			if err != nil {
+				fmt.Println("Unable to generate token")
+				fmt.Println(err)
+				cli.Exit(1)
 			}
 
+			fmt.Println(tokenString)
 		}
 
 	})

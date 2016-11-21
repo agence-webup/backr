@@ -18,8 +18,9 @@ type Settings struct {
 	StartupTime   time.Time
 	// ConfigRefreshRate  int
 	// SwiftUploadEnabled bool
-	Swift     *SwiftSettings
-	ApiListen string
+	Swift          *SwiftSettings
+	ApiListen      string
+	SecretFilepath string
 }
 
 // SwiftSettings represents the settings needed to use Swift
