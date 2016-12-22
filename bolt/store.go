@@ -139,7 +139,13 @@ func (b *Storage) GetProject(ctx context.Context, name string) (*backr.Project, 
 		}
 
 		value := bucket.Get([]byte(name))
-		*project = backr.ProjectFromJSON(string(value))
+		jsonData := string(value)
+		if jsonData == "" {
+			return nil
+		}
+
+		p := backr.ProjectFromJSON(jsonData)
+		project = &p
 
 		return nil
 	})

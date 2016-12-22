@@ -7,6 +7,8 @@ import (
 	"webup/backr/archive"
 	"webup/backr/state"
 
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -109,6 +111,42 @@ func PerformBackup(ctx context.Context) bool {
 	log.Debugln("Backup process finished.")
 
 	return backupFailed
+}
+
+func PerformStandaloneBackup(ctx context.Context, projectName string) error {
+	opts, ok := backr.SettingsFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("Unable to get options from context")
+	}
+
+	// get a state storage
+	stateStorage, err := state.GetStorage(opts)
+	if err != nil {
+		return fmt.Errorf("Unable to connect to state storage: %v", err)
+	}
+
+	project, err := stateStorage.GetProject(ctx, projectName)
+	if err != nil {
+		return fmt.Errorf("Unable to fetch project from state storage: %v", err)
+	}
+
+	if project == nil {
+		return fmt.Errorf("Project not found")
+	}
+
+	standaloneBackup := backr.Backup{
+		BackupSpec: backr.BackupSpec{
+			MinAge:     1,
+			TimeToLive: 3,
+		},
+	}
+
+	err = archive.ExecuteBackup(*project, standaloneBackup, opts)
+	if err != nil {
+		return fmt.Errorf("Backup execution error: %v", err)
+	}
+
+	return nil
 }
 
 func backupIsNeeded(backup backr.Backup, opts backr.Settings) bool {
