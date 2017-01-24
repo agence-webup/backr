@@ -20,7 +20,17 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, settings backr.Se
 		os.MkdirAll(tmpDir, os.ModePerm)
 	}
 
-	executor := Pliz{}
+	var executor backr.Executor
+
+	// archiver
+	if project.Archiver.Type == "stdout" {
+		executor = Stdout{
+			OutputFileExtension: project.Archiver.OutputFileExtension,
+			Command:             project.Archiver.Command,
+		}
+	} else {
+		executor = Pliz{}
+	}
 
 	outputFile := fmt.Sprintf("%d.%s", time.Now().Unix(), executor.GetOutputFileExtension())
 	output, err := filepath.Abs(filepath.Join(tmpDir, outputFile))

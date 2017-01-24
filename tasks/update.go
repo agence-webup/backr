@@ -107,10 +107,11 @@ func UpdateStateFromSpec(ctx context.Context) {
 			continue
 		}
 
-		if !parsedSpec.IsValid() {
+		if err := parsedSpec.IsValid(); err != nil {
 			log.WithFields(log.Fields{
 				"file": file,
-			}).Errorln("The backup.yml file is not valid: 'name' required and 'backups' > 0")
+				"err":  err,
+			}).Errorln("The backup.yml file is not valid")
 			continue
 		}
 

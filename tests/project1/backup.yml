@@ -1,10 +1,16 @@
 name: toto
 
-# override the backup command
-# default: pliz backup --files --db
-# command:
-#   - echo
-#   - "backup!"
+### Default archiver (pliz). Can be ommited
+# archiver:
+#   type: pliz
+
+### You can override with 'stdout' archiver
+# archiver:
+#   type: stdout
+#   ext: txt
+#   command:
+#     - echo
+#     - "backup!"
 
 # array of dict structured with keys:
 #   - ttl: the time (in days) this backup will be available

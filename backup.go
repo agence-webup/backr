@@ -8,15 +8,15 @@ type BackupExecution interface {
 
 // Project represents a backup project executed by backoops
 type Project struct {
-	Name    string
-	Backups []Backup
-	Dir     string
+	Name     string
+	Backups  []Backup
+	Dir      string
+	Archiver Archiver
 }
 
 // Backup represents the state of a backup
 type Backup struct {
 	BackupSpec
-	Command       []string
 	Checksum      string
 	LastExecution time.Time
 }
@@ -40,6 +40,13 @@ func NewProject(spec ProjectBackupSpec) Project {
 
 // Update a Project from a spec and log the report
 func (p *Project) Update(spec ProjectBackupSpec) UpdateReport {
+
+	// update Archiver
+	if spec.Archiver != nil {
+		p.Archiver = *spec.Archiver
+	} else {
+		p.Archiver = Archiver{Type: "pliz"}
+	}
 
 	report := UpdateReport{}
 

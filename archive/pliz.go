@@ -1,7 +1,9 @@
 package archive
 
-import "os/exec"
-import "os"
+import (
+	"os"
+	"os/exec"
+)
 
 // Pliz executes a pliz backup inside the specified directory
 type Pliz struct {
