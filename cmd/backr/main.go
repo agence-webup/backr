@@ -24,7 +24,7 @@ import (
 func main() {
 	app := cli.App("backr", "Perform backups")
 
-	app.Version("v version", "Backr 3 (build 8)")
+	app.Version("v version", "Backr 4 (build 9)")
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
