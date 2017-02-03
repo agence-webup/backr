@@ -175,12 +175,13 @@ func main() {
 
 	app.Command("now", "Execute a backup immediately", func(cmd *cli.Cmd) {
 
-		cmd.Spec = "PROJECT_NAME"
+		cmd.Spec = "[--url] PROJECT_NAME"
 
+		url := cmd.StringOpt("url", "http://127.0.0.1:22258", "URL of private API")
 		projectName := cmd.StringArg("PROJECT_NAME", "", "A project name configured inside backr")
 
 		cmd.Action = func() {
-			client := privatehttp.NewClient()
+			client := privatehttp.NewClient(*url)
 			err := client.Backup(*projectName)
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)

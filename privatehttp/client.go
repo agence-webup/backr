@@ -8,15 +8,16 @@ import (
 )
 
 type PrivateAPIClient struct {
+	URL string
 }
 
-func NewClient() backr.PrivateAPIClient {
-	return &PrivateAPIClient{}
+func NewClient(URL string) backr.PrivateAPIClient {
+	return &PrivateAPIClient{URL: URL}
 }
 
 func (client *PrivateAPIClient) Backup(projectName string) error {
 
-	resp, err := http.Get("http://127.0.0.1:22258/actions/backup?name=" + projectName)
+	resp, err := http.Get(client.URL + "/actions/backup?name=" + projectName)
 	if err != nil {
 		return err
 	}
