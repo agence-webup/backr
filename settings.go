@@ -18,9 +18,10 @@ type Settings struct {
 	StartupTime   time.Time
 	// ConfigRefreshRate  int
 	// SwiftUploadEnabled bool
-	Swift          *SwiftSettings
-	ApiListen      string
-	SecretFilepath string
+	Swift            *SwiftSettings
+	ApiListen        string
+	PrivateAPIListen string
+	SecretFilepath   string
 }
 
 // SwiftSettings represents the settings needed to use Swift
@@ -69,8 +70,9 @@ func NewDefaultSettings() Settings {
 			Minute: 0,
 			Period: time.Duration(24) * time.Hour, // unit of 1 day for ttl and minAge (WARNING: cannot be less (scheduling issues))
 		},
-		StartupTime: time.Now(),
-		ApiListen:   ":22257",
+		StartupTime:      time.Now(),
+		ApiListen:        ":22257",
+		PrivateAPIListen: "127.0.0.1:22258",
 	}
 }
 

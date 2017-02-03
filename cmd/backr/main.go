@@ -8,6 +8,7 @@ import (
 	"time"
 	"webup/backr"
 	"webup/backr/http"
+	"webup/backr/privatehttp"
 	"webup/backr/randstr"
 	"webup/backr/state"
 	"webup/backr/tasks"
@@ -111,8 +112,9 @@ func main() {
 				}
 			}()
 
-			// start HTTP API daemon
+			// start HTTP API daemons
 			startAPI(ctx)
+			startPrivateAPI(ctx)
 
 			// waiting for signal
 			<-waiting
@@ -167,6 +169,23 @@ func main() {
 			}
 
 			fmt.Println(tokenString)
+		}
+
+	})
+
+	app.Command("now", "Execute a backup immediately", func(cmd *cli.Cmd) {
+
+		cmd.Spec = "[--url] PROJECT_NAME"
+
+		url := cmd.StringOpt("url", "http://127.0.0.1:22258", "URL of private API")
+		projectName := cmd.StringArg("PROJECT_NAME", "", "A project name configured inside backr")
+
+		cmd.Action = func() {
+			client := privatehttp.NewClient(*url)
+			err := client.Backup(*projectName)
+			if err != nil {
+				fmt.Printf("ERROR: %v\n", err)
+			}
 		}
 
 	})
@@ -237,6 +256,13 @@ func getStateStorateSettings(cmd *cli.Cmd) backr.StateStorageSettings {
 func startAPI(ctx context.Context) {
 	go func() {
 		api := http.NewAPI()
+		api.Listen(ctx)
+	}()
+}
+
+func startPrivateAPI(ctx context.Context) {
+	go func() {
+		api := privatehttp.NewAPI()
 		api.Listen(ctx)
 	}()
 }
