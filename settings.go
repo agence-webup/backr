@@ -53,6 +53,12 @@ func (st *StateStorageSettings) GetType() StateStorageType {
 	return StateStorageEtcd
 }
 
+type SlackNotifySettings struct {
+	HookURL  string
+	Channel  string
+	Username string
+}
+
 // BackupTimeSpec specifies the time options for performing backup
 type BackupTimeSpec struct {
 	Hour   int

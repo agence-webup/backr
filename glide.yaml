@@ -10,3 +10,4 @@ import:
 - package: github.com/dgrijalva/jwt-go
   version: v3.0.0
 - package: github.com/mitchellh/go-homedir
+- package: github.com/johntdyer/slackrus

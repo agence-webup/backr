@@ -18,6 +18,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
 	cli "github.com/jawher/mow.cli"
+	"github.com/johntdyer/slackrus"
 	homedir "github.com/mitchellh/go-homedir"
 )
 
@@ -40,6 +41,21 @@ func main() {
 		swiftSettings := getSwiftSettings(cmd)
 		if swiftSettings == nil {
 			log.Warnln("Swift upload will be unavailable because some args or env vars are missing to configure Swift upload")
+		}
+
+		// slack notify
+		// swift
+		slackSettings := getSlackNotifySettings(cmd)
+		if slackSettings == nil {
+			log.Warnln("Slack notifications is not configured")
+		} else {
+			log.AddHook(&slackrus.SlackrusHook{
+				HookURL:        slackSettings.HookURL,
+				AcceptedLevels: slackrus.LevelThreshold(log.ErrorLevel),
+				Channel:        slackSettings.Channel, // needs a '#' inside the channel name
+				IconEmoji:      ":ghost:",
+				Username:       slackSettings.Username,
+			})
 		}
 
 		// options
@@ -251,6 +267,37 @@ func getStateStorateSettings(cmd *cli.Cmd) backr.StateStorageSettings {
 		EtcdEndpoints: etcdEndpoints,
 		LocalPath:     localPath,
 	}
+}
+
+func getSlackNotifySettings(cmd *cli.Cmd) *backr.SlackNotifySettings {
+	url := cmd.String(cli.StringOpt{
+		Name:   "slack-hook-url",
+		Value:  "",
+		Desc:   "Slack hook URL",
+		EnvVar: "SLACK_HOOK_URL",
+	})
+	channel := cmd.String(cli.StringOpt{
+		Name:   "slack-channel",
+		Value:  "",
+		Desc:   "Slack channel where the notifications will be sent",
+		EnvVar: "SLACK_CHANNEL",
+	})
+	username := cmd.String(cli.StringOpt{
+		Name:   "slack-username",
+		Value:  "backr",
+		Desc:   "Username used to send Slack notifications",
+		EnvVar: "SLACK_USERNAME",
+	})
+
+	if *url != "" && *channel != "" && *username != "" {
+		return &backr.SlackNotifySettings{
+			HookURL:  *url,
+			Channel:  *channel,
+			Username: *username,
+		}
+	}
+
+	return nil
 }
 
 func startAPI(ctx context.Context) {
