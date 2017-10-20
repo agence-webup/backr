@@ -10,8 +10,8 @@ import (
 
 	"path/filepath"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	log "github.com/sirupsen/logrus"
 )
 
 // Storage implements the StateStorage interface to store the state locally, using BoltDB

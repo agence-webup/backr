@@ -5,7 +5,7 @@ import (
 
 	"github.com/ncw/swift"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // GetSwiftConnection initialize a new Swift connection

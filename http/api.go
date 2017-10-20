@@ -11,8 +11,8 @@ import (
 
 	"encoding/json"
 
-	log "github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 )
 
 type HTTPApi struct {

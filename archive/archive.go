@@ -8,7 +8,7 @@ import (
 	"webup/backr"
 	"webup/backr/swift"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // ExecuteBackup performs backup execution

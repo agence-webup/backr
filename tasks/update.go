@@ -8,7 +8,7 @@ import (
 	"webup/backr"
 	"webup/backr/state"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // UpdateStateFromSpec runs before each backup to fetch the backup.yml files inside watched directories and update the state

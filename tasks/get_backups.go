@@ -6,7 +6,7 @@ import (
 	"webup/backr"
 	"webup/backr/swift"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func GetBackups(name string, ctx context.Context) ([]backr.UploadedArchiveInfo, error) {

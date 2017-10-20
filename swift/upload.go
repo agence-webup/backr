@@ -7,8 +7,8 @@ import (
 	"time"
 	"webup/backr"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ncw/swift"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

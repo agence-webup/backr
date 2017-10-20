@@ -15,10 +15,10 @@ import (
 
 	"io/ioutil"
 
-	log "github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
 	cli "github.com/jawher/mow.cli"
 	homedir "github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
