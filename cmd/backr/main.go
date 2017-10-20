@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/evalphobia/logrus_sentry"
 	cli "github.com/jawher/mow.cli"
 	homedir "github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
@@ -31,7 +32,7 @@ func main() {
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
 		// cmd.Spec = "-w... --etcd|--local [--time] [--config-refresh-rate]"
-		cmd.Spec = "-w... --etcd|--local [--time] [--secret-file-path] [--api-listen] [--debug]"
+		cmd.Spec = "-w... --etcd|--local [--time] [--secret-file-path] [--api-listen] [--debug] [--sentry-dsn]"
 
 		// state storage
 		stateStorageSettings := getStateStorateSettings(cmd)
@@ -48,12 +49,24 @@ func main() {
 		secretFilePath := cmd.StringOpt("secret-file-path", "~/.backr/jwt_secret", "Path to the file storing the secret used for generating access token to backup files")
 		apiListenOpt := cmd.StringOpt("api-listen", ":22257", "Configure IP and port for HTTP API")
 		debug := cmd.BoolOpt("debug", false, "Enables the debug logs output")
+		sentryDSN := cmd.StringOpt("sentry-dsn", "", "DSN for sending logs to Sentry")
 
 		cmd.Action = func() {
 
 			// set debug log level if needed
 			if *debug {
 				log.SetLevel(log.DebugLevel)
+			}
+
+			if *sentryDSN != "" {
+				hook, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
+					log.PanicLevel,
+					log.FatalLevel,
+					log.ErrorLevel,
+				})
+				if err == nil {
+					log.AddHook(hook)
+				}
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
