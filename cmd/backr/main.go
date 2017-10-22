@@ -231,6 +231,12 @@ func getSwiftSettings(cmd *cli.Cmd) *backr.SwiftSettings {
 		Desc:   "Swift Tenant name",
 		EnvVar: "OS_TENANT_NAME",
 	})
+	region := cmd.String(cli.StringOpt{
+		Name:   "swift-region",
+		Value:  "",
+		Desc:   "Swift region name",
+		EnvVar: "OS_REGION_NAME",
+	})
 
 	if *url != "" && *user != "" && *apiKey != "" && *tenantName != "" {
 		return &backr.SwiftSettings{
@@ -238,6 +244,7 @@ func getSwiftSettings(cmd *cli.Cmd) *backr.SwiftSettings {
 			User:          *user,
 			APIKey:        *apiKey,
 			TenantName:    *tenantName,
+			Region:        *region,
 			ContainerName: "backups",
 		}
 	}

@@ -17,6 +17,7 @@ func getSwiftConnection(opts backr.SwiftSettings) (*swift.Connection, error) {
 		ApiKey:   opts.APIKey,
 		AuthUrl:  opts.AuthURL,
 		Tenant:   opts.TenantName, // Name of the tenant (v2 auth only)
+		Region:   opts.Region,
 	}
 	// Authenticate
 	err := c.Authenticate()

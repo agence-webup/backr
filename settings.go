@@ -30,6 +30,7 @@ type SwiftSettings struct {
 	User          string
 	APIKey        string
 	TenantName    string
+	Region        string
 	ContainerName string
 }
 
