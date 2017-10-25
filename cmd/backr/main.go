@@ -195,10 +195,13 @@ func main() {
 
 		cmd.Action = func() {
 			client := privatehttp.NewClient(*url)
-			err := client.Backup(*projectName)
+			info, err := client.Backup(*projectName)
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)
 			}
+
+			fmt.Println("name:", info.Name)
+			fmt.Println("url:", info.URL)
 		}
 
 	})

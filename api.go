@@ -1,6 +1,8 @@
 package backr
 
-import "context"
+import (
+	"context"
+)
 
 type API interface {
 	Listen(ctx context.Context) error
@@ -11,5 +13,5 @@ type PrivateAPI interface {
 }
 
 type PrivateAPIClient interface {
-	Backup(projectName string) error
+	Backup(projectName string) (*UploadedArchiveInfo, error)
 }

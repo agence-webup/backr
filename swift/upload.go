@@ -15,17 +15,17 @@ const (
 	containerName = "backups"
 )
 
-func Upload(project backr.Project, backup backr.Backup, file string, fileExt string, settings backr.SwiftSettings) error {
-	// Create a connection
+// Create a connection
+func Upload(project backr.Project, backup backr.Backup, file string, fileExt string, returnBackupURL bool, settings backr.SwiftSettings) (*backr.UploadedArchiveInfo, error) {
 	c, err := getSwiftConnection(settings)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check if the container for backups is created. If not, create it
 	containers, err := c.ContainerNames(nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	found := false
 	log.WithFields(log.Fields{"container_name": containerName}).Debugln("Trying to find the backup container...")
@@ -39,7 +39,7 @@ func Upload(project backr.Project, backup backr.Backup, file string, fileExt str
 		log.WithFields(log.Fields{"container_name": containerName}).Debugln("Container not found. Create it.")
 		err = c.ContainerCreate(containerName, nil)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -61,5 +61,18 @@ func Upload(project backr.Project, backup backr.Backup, file string, fileExt str
 
 	_, err = c.ObjectPut(containerName, filename, reader, true, "", "", headers)
 
-	return err
+	info := backr.UploadedArchiveInfo{
+		Name: filename,
+	}
+
+	if returnBackupURL {
+		// fetch the headers for the Account (allowing to get the key for temp urls)
+		_, headers, accountErr := c.Account()
+		// generate a temp url for download
+		if accountErr == nil {
+			info.URL = c.ObjectTempUrl(settings.ContainerName, filename, headers["X-Account-Meta-Temp-Url-Key"], "GET", time.Now().Add(10*time.Minute))
+		}
+	}
+
+	return &info, err
 }

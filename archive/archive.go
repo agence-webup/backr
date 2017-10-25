@@ -12,7 +12,7 @@ import (
 )
 
 // ExecuteBackup performs backup execution
-func ExecuteBackup(project backr.Project, backup backr.Backup, settings backr.Settings) error {
+func ExecuteBackup(project backr.Project, backup backr.Backup, returnBackupURL bool, settings backr.Settings) (*backr.UploadedArchiveInfo, error) {
 
 	tmpDir := "._tmp"
 
@@ -35,14 +35,16 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, settings backr.Se
 	outputFile := fmt.Sprintf("%d.%s", time.Now().Unix(), executor.GetOutputFileExtension())
 	output, err := filepath.Abs(filepath.Join(tmpDir, outputFile))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// execute the command
 	err = executor.Execute(project.Dir, output)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var info *backr.UploadedArchiveInfo
 
 	// upload to swift
 	if settings.Swift != nil {
@@ -52,9 +54,9 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, settings backr.Se
 			"file":         output,
 		}).Debugln("Backup file created")
 
-		err = swift.Upload(project, backup, output, executor.GetOutputFileExtension(), *settings.Swift)
+		info, err = swift.Upload(project, backup, output, executor.GetOutputFileExtension(), returnBackupURL, *settings.Swift)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// delete the file
@@ -67,5 +69,5 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, settings backr.Se
 		}).Debugln("Backup file created")
 	}
 
-	return nil
+	return info, nil
 }

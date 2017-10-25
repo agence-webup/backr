@@ -71,7 +71,7 @@ func PerformBackup(ctx context.Context) bool {
 					logEntry.Infoln("Executing backup...")
 
 					// perform backup command
-					err := archive.ExecuteBackup(project, backup, opts)
+					_, err := archive.ExecuteBackup(project, backup, false, opts)
 					if err != nil {
 						logEntry.Errorln("Backup execution error:", err)
 						backupFailed = true
@@ -113,25 +113,25 @@ func PerformBackup(ctx context.Context) bool {
 	return backupFailed
 }
 
-func PerformStandaloneBackup(ctx context.Context, projectName string) error {
+func PerformStandaloneBackup(ctx context.Context, projectName string) (*backr.UploadedArchiveInfo, error) {
 	opts, ok := backr.SettingsFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("Unable to get options from context")
+		return nil, fmt.Errorf("Unable to get options from context")
 	}
 
 	// get a state storage
 	stateStorage, err := state.GetStorage(opts)
 	if err != nil {
-		return fmt.Errorf("Unable to connect to state storage: %v", err)
+		return nil, fmt.Errorf("Unable to connect to state storage: %v", err)
 	}
 
 	project, err := stateStorage.GetProject(ctx, projectName)
 	if err != nil {
-		return fmt.Errorf("Unable to fetch project from state storage: %v", err)
+		return nil, fmt.Errorf("Unable to fetch project from state storage: %v", err)
 	}
 
 	if project == nil {
-		return fmt.Errorf("Project not found")
+		return nil, fmt.Errorf("Project not found")
 	}
 
 	standaloneBackup := backr.Backup{
@@ -141,12 +141,12 @@ func PerformStandaloneBackup(ctx context.Context, projectName string) error {
 		},
 	}
 
-	err = archive.ExecuteBackup(*project, standaloneBackup, opts)
+	info, err := archive.ExecuteBackup(*project, standaloneBackup, true, opts)
 	if err != nil {
-		return fmt.Errorf("Backup execution error: %v", err)
+		return nil, fmt.Errorf("Backup execution error: %v", err)
 	}
 
-	return nil
+	return info, nil
 }
 
 func backupIsNeeded(backup backr.Backup, opts backr.Settings) bool {

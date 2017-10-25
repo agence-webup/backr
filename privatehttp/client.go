@@ -1,6 +1,7 @@
 package privatehttp
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -15,21 +16,27 @@ func NewClient(URL string) backr.PrivateAPIClient {
 	return &PrivateAPIClient{URL: URL}
 }
 
-func (client *PrivateAPIClient) Backup(projectName string) error {
+func (client *PrivateAPIClient) Backup(projectName string) (*backr.UploadedArchiveInfo, error) {
 
 	resp, err := http.Get(client.URL + "/actions/backup?name=" + projectName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return fmt.Errorf("%v", string(body))
+		return nil, fmt.Errorf("%v", string(body))
 	}
 
-	return nil
+	var info backr.UploadedArchiveInfo
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		return nil, err
+	}
+
+	return &info, nil
 }

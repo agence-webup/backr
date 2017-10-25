@@ -2,6 +2,7 @@ package privatehttp
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"webup/backr"
 
@@ -49,7 +50,7 @@ func (api *HTTPApi) Backup(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		err := tasks.PerformStandaloneBackup(ctx, name)
+		info, err := tasks.PerformStandaloneBackup(ctx, name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintln(w, err)
@@ -57,5 +58,9 @@ func (api *HTTPApi) Backup(ctx context.Context) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+
+		if info != nil {
+			json.NewEncoder(w).Encode(info)
+		}
 	}
 }
