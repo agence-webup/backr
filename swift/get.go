@@ -55,7 +55,7 @@ func Get(query string, settings backr.SwiftSettings) ([]backr.UploadedArchiveInf
 
 			// generate a temp url for download
 			if accountErr == nil {
-				info.URL = c.ObjectTempUrl(settings.ContainerName, obj.Name, headers["X-Account-Meta-Temp-Url-Key"], "GET", time.Now().Add(2*time.Minute))
+				info.URL = c.ObjectTempUrl(settings.ContainerName, obj.Name, headers["X-Account-Meta-Temp-Url-Key"], "GET", time.Now().Add(10*time.Minute))
 			}
 
 			results <- info
