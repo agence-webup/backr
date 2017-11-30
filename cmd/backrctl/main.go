@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	cli "github.com/jawher/mow.cli"
@@ -120,18 +122,20 @@ func main() {
 			}
 
 			for i, b := range backups {
-				t, _ := time.Parse(time.RFC3339, b.Expire)
-				backups[i].ExpirationTime = t
+				name := filepath.Base(b.Name)
+				name = strings.Replace(name, ".tar.gz", "", 1)
+				t, _ := time.Parse(time.RFC3339, name)
+				backups[i].CreatedAt = t
 			}
 
 			sort.Slice(backups, func(i, j int) bool {
-				return backups[i].ExpirationTime.Unix() > backups[j].ExpirationTime.Unix()
+				return backups[i].CreatedAt.Unix() > backups[j].CreatedAt.Unix()
 			})
 
 			backupsList := []string{}
 			backupsByMenuItem := map[string]Backup{}
 			for i, b := range backups {
-				formattedTime := b.ExpirationTime.Format("02/01/2006 15:04:05")
+				formattedTime := b.CreatedAt.Format("02/01/2006 15:04:05")
 				backupsList = append(backupsList, formattedTime)
 				backupsByMenuItem[formattedTime] = backups[i]
 			}
@@ -147,7 +151,9 @@ func main() {
 				os.Exit(0)
 			}
 
+			fmt.Println()
 			fmt.Println(backupsByMenuItem[backupSelected].URL)
+			fmt.Println()
 		}
 
 	})
@@ -164,7 +170,7 @@ type Project struct {
 }
 
 type Backup struct {
-	URL            string
-	Expire         string
-	ExpirationTime time.Time
+	Name      string
+	URL       string
+	CreatedAt time.Time
 }
