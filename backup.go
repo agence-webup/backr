@@ -6,7 +6,7 @@ type BackupExecution interface {
 	Execute()
 }
 
-// Project represents a backup project executed by backoops
+// Project represents a backup project executed by backr
 type Project struct {
 	Name     string
 	Backups  []Backup
@@ -95,7 +95,10 @@ func (p *Project) Update(spec ProjectBackupSpec) UpdateReport {
 func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime time.Time) time.Time {
 	// returns the date only if it's the first backup or the min age has been reached
 	// force the execution at a the specified start hour, to avoid performing backup at unwanted time
-	if backup.LastExecution.IsZero() || backup.LastExecution.Add(time.Duration(backup.MinAge)*timeSpec.Period).Before(startupTime) {
+
+	next := backup.LastExecution.Add(time.Duration(backup.MinAge) * time.Duration(backup.PeriodUnit) * time.Minute)
+
+	if !backup.IgnoreStartupTime && (backup.LastExecution.IsZero() || next.Before(startupTime)) {
 		date := time.Date(startupTime.Year(), startupTime.Month(), startupTime.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
 
 		// if the next date is before than the current time, then pick the next day at the same hour
@@ -106,8 +109,7 @@ func (backup *Backup) GetNextBackupTime(timeSpec BackupTimeSpec, startupTime tim
 		return date
 	}
 
-	date := time.Date(backup.LastExecution.Year(), backup.LastExecution.Month(), backup.LastExecution.Day(), timeSpec.Hour, timeSpec.Minute, 0, 0, time.Local)
-	return date.Add(time.Duration(backup.MinAge) * timeSpec.Period)
+	return next
 }
 
 // GetHealth returns the health of a backup: true is everything is OK, false otherwise

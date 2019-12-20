@@ -55,10 +55,11 @@ func PerformBackup(ctx context.Context) bool {
 
 			// prepare a log entry
 			logEntry := log.WithFields(log.Fields{
-				"name":      project.Name,
-				"ttl":       backup.TimeToLive,
-				"min_age":   backup.MinAge,
-				"last_exec": backup.LastExecution,
+				"name":                project.Name,
+				"min_age":             backup.MinAge,
+				"period_unit":         backup.PeriodUnit,
+				"ignore_startup_time": backup.IgnoreStartupTime,
+				"last_exec":           backup.LastExecution,
 			})
 
 			logEntry.Debugln("Next execution scheduled at", backup.GetNextBackupTime(opts.TimeSpec, opts.StartupTime))
@@ -136,8 +137,7 @@ func PerformStandaloneBackup(ctx context.Context, projectName string) (*backr.Up
 
 	standaloneBackup := backr.Backup{
 		BackupSpec: backr.BackupSpec{
-			MinAge:     1,
-			TimeToLive: 3,
+			MinAge: 1,
 		},
 	}
 

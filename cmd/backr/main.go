@@ -7,16 +7,10 @@ import (
 	"os/signal"
 	"time"
 	"webup/backr"
-	"webup/backr/http"
 	"webup/backr/privatehttp"
-	"webup/backr/randstr"
 	"webup/backr/state"
 	"webup/backr/tasks"
 
-	"io/ioutil"
-
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/evalphobia/logrus_sentry"
 	cli "github.com/jawher/mow.cli"
 	homedir "github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
@@ -32,15 +26,15 @@ func main() {
 	app.Command("daemon", "Start the backup process", func(cmd *cli.Cmd) {
 
 		// cmd.Spec = "-w... --etcd|--local [--time] [--config-refresh-rate]"
-		cmd.Spec = "-w... --etcd|--local [--time] [--secret-file-path] [--api-listen] [--debug] [--sentry-dsn]"
+		cmd.Spec = "-w... --etcd|--local [--time] [--secret-file-path] [--api-listen] [--debug]"
 
 		// state storage
 		stateStorageSettings := getStateStorateSettings(cmd)
 
-		// swift
-		swiftSettings := getSwiftSettings(cmd)
-		if swiftSettings == nil {
-			log.Warnln("Swift upload will be unavailable because some args or env vars are missing to configure Swift upload")
+		// S3
+		s3Settings := getS3Settings(cmd)
+		if s3Settings == nil {
+			log.Warnln("S3 upload will be unavailable because some args or env vars are missing to configure S3 upload")
 		}
 
 		// options
@@ -49,7 +43,6 @@ func main() {
 		secretFilePath := cmd.StringOpt("secret-file-path", "~/.backr/jwt_secret", "Path to the file storing the secret used for generating access token to backup files")
 		apiListenOpt := cmd.StringOpt("api-listen", ":22257", "Configure IP and port for HTTP API")
 		debug := cmd.BoolOpt("debug", false, "Enables the debug logs output")
-		sentryDSN := cmd.StringOpt("sentry-dsn", "", "DSN for sending logs to Sentry")
 
 		cmd.Action = func() {
 
@@ -58,24 +51,13 @@ func main() {
 				log.SetLevel(log.DebugLevel)
 			}
 
-			if *sentryDSN != "" {
-				hook, err := logrus_sentry.NewSentryHook(*sentryDSN, []log.Level{
-					log.PanicLevel,
-					log.FatalLevel,
-					log.ErrorLevel,
-				})
-				if err == nil {
-					log.AddHook(hook)
-				}
-			}
-
 			ctx, cancel := context.WithCancel(context.Background())
 
 			// prepare options
 			currentSettings := backr.NewDefaultSettings()
 			currentSettings.StateStorage = stateStorageSettings
 			currentSettings.WatchDirs = *watchDirs
-			currentSettings.Swift = swiftSettings
+			currentSettings.S3 = s3Settings
 			currentSettings.ApiListen = *apiListenOpt
 
 			path, _ := homedir.Expand(*secretFilePath)
@@ -99,7 +81,7 @@ func main() {
 			signal.Notify(waiting, os.Interrupt, os.Kill)
 
 			// prepare ticker
-			ticker := time.NewTicker(5 * time.Minute) // 1 minute
+			ticker := time.NewTicker(5 * time.Minute)
 
 			go func() {
 				isRunning := false
@@ -126,7 +108,6 @@ func main() {
 			}()
 
 			// start HTTP API daemons
-			startAPI(ctx)
 			startPrivateAPI(ctx)
 
 			// waiting for signal
@@ -140,50 +121,6 @@ func main() {
 
 			log.Infoln("Stopped.")
 		}
-	})
-
-	app.Command("token", "Create a token to access to backup archives", func(cmd *cli.Cmd) {
-
-		cmd.Spec = "[--secret-file-path] [-q]"
-
-		secretFilePath := cmd.StringOpt("secret-file-path", "~/.backr/jwt_secret", "Path to the file storing the secret used for generating access token to backup files")
-		quiet := cmd.BoolOpt("q quiet", false, "Just display the token")
-
-		cmd.Action = func() {
-
-			filepath, _ := homedir.Expand(*secretFilePath)
-
-			secret, err := ioutil.ReadFile(filepath)
-			if err != nil {
-				if !*quiet {
-					fmt.Println("Secret file not found. Create it at", filepath)
-				}
-				secret = randstr.SecureRandomBytes(64)
-				err := ioutil.WriteFile(filepath, secret, 0600)
-				if err != nil {
-					fmt.Println("Unable to create secret file")
-					fmt.Println(err)
-					cli.Exit(1)
-				}
-			}
-
-			// Create a new token object, specifying signing method and the claims
-			// you would like it to contain.
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-				"exp": time.Now().Add(24 * time.Hour).Unix(),
-			})
-
-			// Sign and get the complete encoded token as a string using the secret
-			tokenString, err := token.SignedString(secret)
-			if err != nil {
-				fmt.Println("Unable to generate token")
-				fmt.Println(err)
-				cli.Exit(1)
-			}
-
-			fmt.Println(tokenString)
-		}
-
 	})
 
 	app.Command("now", "Execute a backup immediately", func(cmd *cli.Cmd) {
@@ -209,46 +146,45 @@ func main() {
 	app.Run(os.Args)
 }
 
-func getSwiftSettings(cmd *cli.Cmd) *backr.SwiftSettings {
-	url := cmd.String(cli.StringOpt{
-		Name:   "swift-auth-url",
+func getS3Settings(cmd *cli.Cmd) *backr.S3Settings {
+	bucket := cmd.String(cli.StringOpt{
+		Name:   "s3-bucket",
 		Value:  "",
-		Desc:   "Swift auth URL",
-		EnvVar: "OS_AUTH_URL",
+		Desc:   "S3 bucket name",
+		EnvVar: "S3_BUCKET",
 	})
-	user := cmd.String(cli.StringOpt{
-		Name:   "swift-user",
+	endpoint := cmd.String(cli.StringOpt{
+		Name:   "s3-endpoint",
 		Value:  "",
-		Desc:   "Swift username",
-		EnvVar: "OS_USERNAME",
+		Desc:   "S3 API endpoint",
+		EnvVar: "S3_ENDPOINT",
 	})
-	apiKey := cmd.String(cli.StringOpt{
-		Name:   "swift-password",
+	accessKey := cmd.String(cli.StringOpt{
+		Name:   "s3-access-key",
 		Value:  "",
-		Desc:   "Swift API Key / Password",
-		EnvVar: "OS_PASSWORD",
+		Desc:   "S3 Access Key",
+		EnvVar: "S3_ACCESS_KEY",
 	})
-	tenantName := cmd.String(cli.StringOpt{
-		Name:   "swift-tenant-name",
+	secretKey := cmd.String(cli.StringOpt{
+		Name:   "s3-secret-key",
 		Value:  "",
-		Desc:   "Swift Tenant name",
-		EnvVar: "OS_TENANT_NAME",
+		Desc:   "S3 Secret Key",
+		EnvVar: "S3_SECRET_KEY",
 	})
-	region := cmd.String(cli.StringOpt{
-		Name:   "swift-region",
-		Value:  "",
-		Desc:   "Swift region name",
-		EnvVar: "OS_REGION_NAME",
+	useTLS := cmd.Bool(cli.BoolOpt{
+		Name:   "s3-use-tls",
+		Value:  true,
+		Desc:   "Use TLS to connect to S3 API",
+		EnvVar: "S3_USE_TLS",
 	})
 
-	if *url != "" && *user != "" && *apiKey != "" && *tenantName != "" {
-		return &backr.SwiftSettings{
-			AuthURL:       *url,
-			User:          *user,
-			APIKey:        *apiKey,
-			TenantName:    *tenantName,
-			Region:        *region,
-			ContainerName: "backups",
+	if *bucket != "" && *endpoint != "" && *accessKey != "" && *secretKey != "" {
+		return &backr.S3Settings{
+			Bucket:    *bucket,
+			Endpoint:  *endpoint,
+			AccessKey: *accessKey,
+			SecretKey: *secretKey,
+			UseTLS:    *useTLS,
 		}
 	}
 
@@ -274,13 +210,6 @@ func getStateStorateSettings(cmd *cli.Cmd) backr.StateStorageSettings {
 		EtcdEndpoints: etcdEndpoints,
 		LocalPath:     localPath,
 	}
-}
-
-func startAPI(ctx context.Context) {
-	go func() {
-		api := http.NewAPI()
-		api.Listen(ctx)
-	}()
 }
 
 func startPrivateAPI(ctx context.Context) {

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 	"webup/backr"
-	"webup/backr/swift"
+	"webup/backr/s3"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -46,15 +46,15 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, returnBackupURL b
 
 	var info *backr.UploadedArchiveInfo
 
-	// upload to swift
-	if settings.Swift != nil {
+	// upload to S3
+	if settings.S3 != nil {
 		log.WithFields(log.Fields{
-			"name":         project.Name,
-			"swift_upload": true,
-			"file":         output,
+			"name":      project.Name,
+			"s3_upload": true,
+			"file":      output,
 		}).Debugln("Backup file created")
 
-		info, err = swift.Upload(project, backup, output, executor.GetOutputFileExtension(), returnBackupURL, *settings.Swift)
+		info, err = s3.Upload(project, backup, output, executor.GetOutputFileExtension(), returnBackupURL, *settings.S3)
 		if err != nil {
 			return nil, err
 		}
@@ -63,9 +63,9 @@ func ExecuteBackup(project backr.Project, backup backr.Backup, returnBackupURL b
 		os.Remove(output)
 	} else {
 		log.WithFields(log.Fields{
-			"name":         project.Name,
-			"swift_upload": false,
-			"file":         output,
+			"name":      project.Name,
+			"s3_upload": false,
+			"file":      output,
 		}).Debugln("Backup file created")
 	}
 

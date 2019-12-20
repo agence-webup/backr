@@ -16,8 +16,9 @@ type ProjectBackupSpec struct {
 
 // BackupSpec represents a backup specification
 type BackupSpec struct {
-	TimeToLive int `yaml:"ttl"`
-	MinAge     int `yaml:"min_age"`
+	MinAge            int  `yaml:"min_age"`
+	PeriodUnit        int  `yaml:"period_unit"` // unit for 'min_age', in hours (default to 24h)
+	IgnoreStartupTime bool `yaml:"ignore_startup_time"`
 }
 
 type Archiver struct {
@@ -26,24 +27,9 @@ type Archiver struct {
 	Command             []string `yaml:"command"`
 }
 
-// OrderedBackupSpec allows to order the backups by TTL
-type OrderedBackupSpec []BackupSpec
-
-func (b OrderedBackupSpec) Len() int {
-	return len(b)
-}
-
-func (b OrderedBackupSpec) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b OrderedBackupSpec) Less(i, j int) bool {
-	return b[i].TimeToLive < b[j].TimeToLive
-}
-
 // GetChecksum returns a hash of the backup allowing to detect changes
 func (b BackupSpec) GetChecksum() string {
-	data := []byte(strconv.Itoa(b.TimeToLive) + strconv.Itoa(b.MinAge))
+	data := []byte(strconv.Itoa(b.PeriodUnit) + strconv.Itoa(b.MinAge) + strconv.FormatBool(b.IgnoreStartupTime))
 	return fmt.Sprintf("%x", md5.Sum(data))
 }
 

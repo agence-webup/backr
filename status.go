@@ -14,7 +14,7 @@ type ProjectStatus struct {
 }
 
 type BackupStatus struct {
-	TimeToLive    int       `json:"ttl"`
+	PeriodUnit    int       `json:"period_unit"`
 	MinAge        int       `json:"min_age"`
 	LastExecution time.Time `json:"last_exec"`
 	NextExecution time.Time `json:"next_exec"`

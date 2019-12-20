@@ -36,8 +36,8 @@ func GetStatus(ctx context.Context) (backr.Status, error) {
 		for _, backup := range project.Backups {
 
 			status := backr.BackupStatus{
-				TimeToLive:    backup.TimeToLive,
 				MinAge:        backup.MinAge,
+				PeriodUnit:    backup.PeriodUnit,
 				LastExecution: backup.LastExecution,
 				NextExecution: backup.GetNextBackupTime(opts.TimeSpec, opts.StartupTime),
 				IsHealthy:     backup.GetHealth(opts.TimeSpec, opts.StartupTime),

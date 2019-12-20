@@ -18,20 +18,19 @@ type Settings struct {
 	StartupTime   time.Time
 	// ConfigRefreshRate  int
 	// SwiftUploadEnabled bool
-	Swift            *SwiftSettings
+	S3               *S3Settings
 	ApiListen        string
 	PrivateAPIListen string
 	SecretFilepath   string
 }
 
-// SwiftSettings represents the settings needed to use Swift
-type SwiftSettings struct {
-	AuthURL       string
-	User          string
-	APIKey        string
-	TenantName    string
-	Region        string
-	ContainerName string
+// S3Settings represents the settings needed to use S3 API
+type S3Settings struct {
+	Bucket    string
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	UseTLS    bool
 }
 
 type StateStorageType string
